@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flip 7: 200pt Championship</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header id="scoreboard">
+        <div class="deck-visual">
+            <div id="deck-count-circle">0</div>
+            <small>DECK</small>
+        </div>
+        <div id="leaderboard-container">
+            <div class="goal-info">GOAL: 200 PTS</div>
+            <div id="leaderboard-list"></div>
+        </div>
+    </header>
+
+    <main id="game-board">
+        <div id="table-center">
+            <h2 id="turn-display">Flip 7 Championship</h2>
+            <div id="main-controls">
+                <button id="start-btn" class="sys-btn">RESET FULL GAME</button>
+                <div id="action-btns" style="display:none;">
+                    <button id="twist-btn" class="hit">TWIST</button>
+                    <button id="stay-btn" class="stay">STAY</button>
+                </div>
+            </div>
+            <p id="game-log">Press Reset to begin the match to 200 points.</p>
+        </div>
+
+        <div id="target-modal" class="modal" style="display:none;">
+            <div class="modal-content">
+                <h3>Assigning: <span id="action-card-name" class="highlight"></span></h3>
+                <div id="target-buttons"></div>
+            </div>
+        </div>
+
+        <div id="winner-modal" class="modal" style="display:none;">
+            <div class="modal-content win-box">
+                <h1 id="winner-name">PLAYER 1 WINS!</h1>
+                <p>Final Score: <span id="winner-score">0</span></p>
+                <button onclick="location.reload()" class="hit">PLAY AGAIN</button>
+            </div>
+        </div>
+
+        <div id="players-list"></div>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
