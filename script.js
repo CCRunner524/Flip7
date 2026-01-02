@@ -1,5 +1,5 @@
-/** * FLIP 7 - ONE-SCREEN CHAMPIONSHIP 
- * FIXED: Action Card Chaining (Actions inside Flip 3 now trigger targeting)
+/** * FLIP 7 - FULL CHAINING VERSION
+ * Fix: Async/Await logic ensures actions inside Flip 3 trigger targeting.
  */
 
 let deck = [];
@@ -7,7 +7,7 @@ let players = [];
 let currentPlayerIndex = 0;
 const WIN_SCORE = 200;
 
-// --- DECK INITIALIZATION (94 Cards) ---
+// --- DECK INITIALIZATION ---
 function createDeck() {
     let d = [];
     for (let n = 0; n <= 12; n++) {
@@ -22,7 +22,7 @@ function createDeck() {
     return d.sort(() => Math.random() - 0.5);
 }
 
-// --- SETUP SCREEN LOGIC ---
+// --- SETUP ---
 const countInput = document.getElementById('player-count-input');
 const inputsContainer = document.getElementById('name-inputs-container');
 
@@ -45,48 +45,52 @@ document.getElementById('start-game-btn').onclick = () => {
         name: f.value || f.placeholder, totalScore: 0, roundHand: [],
         status: 'active', hasSecondChance: false
     }));
-    if (players.length > 0) {
-        deck = createDeck();
-        document.getElementById('setup-screen').style.display = 'none';
-        document.getElementById('game-screen').style.display = 'block';
-        renderUI();
-    }
+    deck = createDeck();
+    document.getElementById('setup-screen').style.display = 'none';
+    document.getElementById('game-screen').style.display = 'block';
+    renderUI();
 };
 
-// --- CORE GAMEPLAY ---
+// --- GAMEPLAY CORE ---
 async function handleHit() {
+    // Disable buttons while processing a hit/chain
+    toggleControls(false);
+    
     if (deck.length === 0) deck = createDeck();
     let card = deck.pop();
     
-    // Process the card (Check if it's an action)
-    await processCardLogic(players[currentPlayerIndex], card);
+    // Process the card for the current player
+    await processCard(players[currentPlayerIndex], card);
     
     nextTurn();
+    toggleControls(true);
 }
 
-async function processCardLogic(drawingPlayer, card) {
-    // If it's a Freeze or Flip 3, we MUST prompt for a target
+async function processCard(player, card) {
+    if (player.status !== 'active') return;
+
+    // A: Action Cards requiring targeting (Freeze / Flip 3)
     if (card.val === 'FREEZE' || card.val === 'FLIP 3') {
-        const targetPlayer = await openTargetModal(card);
+        const target = await openTargetModal(card);
+        target.roundHand.push(card);
         
         if (card.val === 'FREEZE') {
-            targetPlayer.status = 'stayed';
-            targetPlayer.roundHand.push(card);
-            bankScore(targetPlayer);
-            log(`${targetPlayer.name} was FROZEN!`);
-        } else if (card.val === 'FLIP 3') {
-            targetPlayer.roundHand.push(card);
-            log(`${targetPlayer.name} must FLIP 3!`);
-            await executeFlip3(targetPlayer);
+            target.status = 'stayed';
+            bankScore(target);
+            log(`${target.name} was FROZEN.`);
+        } else {
+            log(`${target.name} must FLIP 3!`);
+            await executeFlip3(target);
         }
-    } else {
-        // Otherwise, apply it normally to the drawing player
-        applyCard(drawingPlayer, card);
+    } 
+    // B: Auto-Assign Cards (Second Chance / Modifiers / Numbers)
+    else {
+        applySimpleCard(player, card);
     }
     renderUI();
 }
 
-function applyCard(player, card) {
+function applySimpleCard(player, card) {
     if (player.status !== 'active') return;
 
     if (card.val === 'CHANCE') {
@@ -94,13 +98,15 @@ function applyCard(player, card) {
             player.hasSecondChance = true;
             player.roundHand.push(card);
         }
+    } else if (card.type === 'mod') {
+        player.roundHand.push(card);
     } else if (card.type === 'number') {
         let isDuplicate = card.val !== 0 && player.roundHand.some(c => c.val === card.val);
         if (isDuplicate) {
             if (player.hasSecondChance) {
                 player.hasSecondChance = false;
                 player.roundHand = player.roundHand.filter(c => c.val !== 'CHANCE');
-                log(`🛡️ ${player.name} used 2nd Chance! Duplicate ${card.val} discarded.`);
+                log(`🛡️ ${player.name} used 2nd Chance! Duplicate discarded.`);
             } else {
                 player.status = 'busted';
                 player.roundHand.push(card);
@@ -109,32 +115,31 @@ function applyCard(player, card) {
         } else {
             player.roundHand.push(card);
         }
-    } else {
-        player.roundHand.push(card);
     }
 
-    // Check Flip 7 Cap
+    // Check Flip 7 Limit
     const uniqueNums = new Set(player.roundHand.filter(c => c.type === 'number').map(c => c.val));
     if (uniqueNums.size === 7) {
         player.status = 'stayed';
-        log(`🌟 ${player.name} HIT FLIP 7!`);
         bankScore(player);
+        log(`🌟 ${player.name} hit FLIP 7!`);
     }
 }
 
-async function executeFlip3(p) {
+async function executeFlip3(target) {
     for (let i = 0; i < 3; i++) {
-        if (p.status === 'active') {
+        if (target.status === 'active') {
+            await new Promise(r => setTimeout(r, 500)); // Pause for visibility
             if (deck.length === 0) deck = createDeck();
             let nextCard = deck.pop();
-            // This is the key update: check for action cards during Flip 3
-            await processCardLogic(p, nextCard);
-            await new Promise(r => setTimeout(r, 400));
+            // RECURSIVE CHECK: If this card is ALSO an action, it triggers another modal
+            await processCard(target, nextCard);
+            renderUI();
         }
     }
 }
 
-// --- MODAL AS A PROMISE ---
+// --- MODAL PROMISE ---
 function openTargetModal(card) {
     return new Promise((resolve) => {
         document.getElementById('modal-overlay').style.display = 'flex';
@@ -149,7 +154,7 @@ function openTargetModal(card) {
                 btn.className = 'hit-btn';
                 btn.onclick = () => {
                     document.getElementById('modal-overlay').style.display = 'none';
-                    resolve(p); // This sends the chosen player back to the logic
+                    resolve(p);
                 };
                 grid.appendChild(btn);
             }
@@ -157,15 +162,21 @@ function openTargetModal(card) {
     });
 }
 
-// --- REMAINING UTILITIES ---
+// --- UTILS ---
+function toggleControls(enable) {
+    document.getElementById('hit-btn-main').disabled = !enable;
+    document.getElementById('stay-btn-main').disabled = !enable;
+    document.getElementById('game-controls').style.opacity = enable ? "1" : "0.5";
+}
+
 function getRoundTotal(player) {
     if (player.status === 'busted') return 0;
-    let baseSum = 0, multiplier = 1, additions = 0, uniqueNums = new Set();
+    let baseSum = 0, multiplier = 1, additives = 0, uniqueNums = new Set();
     player.roundHand.forEach(c => {
         if (c.type === 'number') { baseSum += c.val; if (c.val > 0) uniqueNums.add(c.val); }
-        else if (c.type === 'mod') { if (c.mode === 'mult') multiplier = c.val; else additions += c.val; }
+        else if (c.type === 'mod') { if (c.mode === 'mult') multiplier = c.val; else additives += c.val; }
     });
-    let total = (baseSum * multiplier) + additions;
+    let total = (baseSum * multiplier) + additives;
     if (uniqueNums.size === 7) total += 15;
     return total;
 }
