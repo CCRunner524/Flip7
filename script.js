@@ -1,202 +1,241 @@
-const NUM_PLAYERS = 13;
-const WIN_SCORE = 200;
 let deck = [];
 let players = [];
 let currentPlayerIndex = 0;
-let pendingActionCard = null;
+const WIN_SCORE = 200;
 
-// --- DECK LOGIC ---
+// 1. Deck Generation (94 Cards Total)
 function createDeck() {
     let d = [];
-    // Number Cards
-    d.push({ type: 'number', val: 0, label: '0' });
-    for (let n = 1; n <= 7; n++) {
-        for (let i = 0; i < n; i++) d.push({ type: 'number', val: n, label: n.toString() });
+    // Numbers: 0(1), 1(1), 2(2)... 12(12) = 79 cards
+    for (let n = 0; n <= 12; n++) {
+        let count = (n === 0 || n === 1) ? 1 : n;
+        for (let i = 0; i < count; i++) d.push({ type: 'number', val: n });
     }
-    // Action Cards
-    for (let i = 0; i < 4; i++) d.push({ type: 'action', val: 'FREEZE', label: 'FRZ' });
-    for (let i = 0; i < 3; i++) d.push({ type: 'action', val: 'FLIP 3', label: 'FL3' });
-    for (let i = 0; i < 4; i++) d.push({ type: 'action', val: 'CHANCE', label: '2nd' });
+    // Actions
+    for (let i = 0; i < 3; i++) d.push({ type: 'action', val: 'FREEZE' });
+    for (let i = 0; i < 3; i++) d.push({ type: 'action', val: 'FLIP 3' });
+    for (let i = 0; i < 3; i++) d.push({ type: 'action', val: 'CHANCE' });
     // Modifiers
-    for (let i = 0; i < 3; i++) d.push({ type: 'multiplier', val: 2, label: 'x2' });
-    for (let i = 0; i < 5; i++) d.push({ type: 'bonus', val: 10, label: '+10' });
-    for (let i = 0; i < 8; i++) d.push({ type: 'bonus', val: 5, label: '+5' });
+    [2, 4, 6, 8, 10].forEach(v => d.push({ type: 'mod', val: v, mode: 'add' }));
+    d.push({ type: 'mod', val: 2, mode: 'mult' });
 
     return d.sort(() => Math.random() - 0.5);
 }
 
-function checkDeck() {
-    if (deck.length === 0) {
-        log("Deck depleted! Reshuffling new deck...");
-        deck = createDeck();
+// 2. Setup Logic
+const playerCountInput = document.getElementById('player-count');
+playerCountInput.addEventListener('input', updateNameInputs);
+
+function updateNameInputs() {
+    const container = document.getElementById('name-inputs');
+    container.innerHTML = '';
+    for (let i = 0; i < playerCountInput.value; i++) {
+        container.innerHTML += `<input type="text" placeholder="Player ${i+1}" class="p-name">`;
     }
 }
+updateNameInputs();
 
-// --- GAME CORE ---
-function initGame() {
-    players = Array.from({ length: NUM_PLAYERS }, (_, i) => ({
-        id: i, name: `P${i + 1}`, totalScore: 0, roundHand: [],
-        status: 'active', hasSecondChance: false
+document.getElementById('start-game-btn').onclick = () => {
+    const names = Array.from(document.querySelectorAll('.p-name')).map(i => i.value || i.placeholder);
+    players = names.map(n => ({ 
+        name: n, totalScore: 0, roundHand: [], status: 'active', hasSecondChance: false 
     }));
     deck = createDeck();
-    currentPlayerIndex = 0;
-    document.getElementById('action-btns').style.display = 'block';
-    updateUI();
-}
+    document.getElementById('setup-screen').style.display = 'none';
+    document.getElementById('game-screen').style.display = 'block';
+    renderUI();
+};
 
-function twist() {
-    checkDeck();
+// 3. Core Mechanics
+function processHit() {
+    if (deck.length === 0) deck = createDeck();
     let card = deck.pop();
     let player = players[currentPlayerIndex];
 
-    if (card.type === 'action' || card.type === 'multiplier' || card.type === 'bonus') {
-        openTargetModal(card);
+    if (card.val === 'FREEZE' || card.val === 'FLIP 3') {
+        showTargetModal(card);
     } else {
-        processCard(player, card);
+        applyCard(player, card);
+        moveToNextPlayer();
     }
 }
 
-function processCard(player, card) {
-    player.roundHand.push(card);
+function applyCard(player, card) {
+    if (player.status !== 'active') return;
 
-    if (card.val === 'CHANCE') player.hasSecondChance = true;
-
-    if (card.type === 'number') {
-        if (hasDuplicate(player) && card.val !== 0) {
+    // Second Chance Logic
+    if (card.val === 'CHANCE') {
+        player.hasSecondChance = true;
+        player.roundHand.push(card);
+    } 
+    // Modifier/Number Logic
+    else if (card.type === 'number') {
+        if (checkBust(player, card.val)) {
             if (player.hasSecondChance) {
                 player.hasSecondChance = false;
-                log(`${player.name} used 2nd Chance! Duplicate removed.`);
-                player.roundHand = player.roundHand.filter(c => c !== card && c.val !== 'CHANCE');
+                player.roundHand = player.roundHand.filter(c => c.val !== 'CHANCE');
+                log(`${player.name} used Second Chance! Bust avoided.`);
             } else {
                 player.status = 'busted';
                 log(`${player.name} BUSTED!`);
-                if (player.id === currentPlayerIndex) nextTurn();
             }
+        } else {
+            player.roundHand.push(card);
         }
+    } else {
+        player.roundHand.push(card);
     }
-
-    if (card.val === 'FREEZE') {
+    
+    // Check Flip 7 Limit (Unique Number Cards Only)
+    const uniqueNums = new Set(player.roundHand.filter(c => c.type === 'number').map(c => c.val));
+    if (uniqueNums.size >= 7) {
         player.status = 'stayed';
         bankScore(player);
-        log(`${player.name} is FROZEN!`);
-        if (player.id === currentPlayerIndex) nextTurn();
+        log(`${player.name} reached 7 unique cards!`);
     }
 
-    if (card.val === 'FLIP 3') {
-        log(`${player.name} Flips 3!`);
-        for (let i = 0; i < 3; i++) {
-            if (player.status === 'active') {
-                checkDeck();
-                processCard(player, deck.pop());
-            }
-        }
-    }
-    updateUI();
+    renderUI();
 }
 
-function stay() {
-    let p = players[currentPlayerIndex];
-    p.status = 'stayed';
-    bankScore(p);
-    nextTurn();
+function checkBust(player, newVal) {
+    if (newVal === 0) return false;
+    return player.roundHand.some(c => c.val === newVal);
+}
+
+// 4. Scoring Order: (Numbers * Mult) + Additives
+function calculateRoundScore(player) {
+    if (player.status === 'busted') return 0;
+    let numSum = 0;
+    let multiplier = 1;
+    let additives = 0;
+
+    player.roundHand.forEach(c => {
+        if (c.type === 'number') numSum += c.val;
+        if (c.type === 'mod') {
+            if (c.mode === 'mult') multiplier = c.val;
+            else additives += c.val;
+        }
+    });
+
+    let score = (numSum * multiplier) + additives;
+    // Flip 7 Bonus
+    const uniqueCount = new Set(player.roundHand.filter(c => c.type === 'number').map(c => c.val)).size;
+    if (uniqueCount >= 7) score += 15;
+    
+    return score;
+}
+
+// 5. Action Handlers (Targeting)
+function showTargetModal(card) {
+    document.getElementById('modal-overlay').style.display = 'flex';
+    document.getElementById('modal-title').innerText = `Assign ${card.val}`;
+    const list = document.getElementById('target-buttons');
+    const container = document.getElementById('target-list');
+    container.innerHTML = '';
+
+    players.forEach((p, idx) => {
+        if (p.status === 'active') {
+            const btn = document.createElement('button');
+            btn.innerText = p.name;
+            btn.className = 'hit-btn';
+            btn.onclick = () => {
+                if (card.val === 'FREEZE') {
+                    p.status = 'stayed';
+                    bankScore(p);
+                } else if (card.val === 'FLIP 3') {
+                    executeFlip3(p);
+                }
+                document.getElementById('modal-overlay').style.display = 'none';
+                moveToNextPlayer();
+            };
+            container.appendChild(btn);
+        }
+    });
+}
+
+async function executeFlip3(player) {
+    for (let i = 0; i < 3; i++) {
+        if (player.status === 'active') {
+            if (deck.length === 0) deck = createDeck();
+            applyCard(player, deck.pop());
+            await new Promise(r => setTimeout(r, 400)); // Visual delay
+        }
+    }
+}
+
+// 6. Turn Management
+function moveToNextPlayer() {
+    const actives = players.filter(p => p.status === 'active');
+    if (actives.length === 0) {
+        startNewRound();
+        return;
+    }
+
+    do {
+        currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+    } while (players[currentPlayerIndex].status !== 'active');
+    
+    renderUI();
 }
 
 function bankScore(player) {
-    let sum = 0, mult = 1, unique = new Set();
-    player.roundHand.forEach(c => {
-        if (typeof c.val === 'number') { sum += c.val; if (c.val > 0) unique.add(c.val); }
-        if (c.type === 'bonus') sum += c.val;
-        if (c.val === 2) mult = 2;
-    });
-    let roundTotal = sum * mult;
-    if (unique.size >= 7) roundTotal += 15;
-    player.totalScore += roundTotal;
-    checkWinner(player);
-}
-
-function checkWinner(player) {
+    player.totalScore += calculateRoundScore(player);
     if (player.totalScore >= WIN_SCORE) {
-        document.getElementById('winner-name').innerText = `${player.name.toUpperCase()} WINS!`;
-        document.getElementById('winner-score').innerText = player.totalScore;
-        document.getElementById('winner-modal').style.display = 'flex';
+        document.getElementById('winner-name').innerText = `${player.name} WINS!`;
+        document.getElementById('win-screen').style.display = 'flex';
     }
 }
 
-function nextTurn() {
-    let actives = players.filter(p => p.status === 'active');
-    if (actives.length === 0) return resetRound();
-
-    do {
-        currentPlayerIndex = (currentPlayerIndex + 1) % NUM_PLAYERS;
-    } while (players[currentPlayerIndex].status !== 'active');
-    updateUI();
-}
-
-function resetRound() {
-    log("Round complete. Starting next round...");
+function startNewRound() {
+    log("Round Over. Resetting hands...");
     setTimeout(() => {
-        players.forEach(p => { p.roundHand = []; p.status = 'active'; p.hasSecondChance = false; });
-        updateUI();
+        players.forEach(p => {
+            if (p.status === 'active') bankScore(p); // Bank those who stayed
+            p.roundHand = [];
+            p.status = 'active';
+            p.hasSecondChance = false;
+        });
+        currentPlayerIndex = 0;
+        renderUI();
     }, 2000);
 }
 
-// --- MODALS ---
-function openTargetModal(card) {
-    pendingActionCard = card;
-    document.getElementById('action-card-name').innerText = card.label;
-    const btns = document.getElementById('target-buttons');
-    btns.innerHTML = '';
+// 7. UI Update
+function renderUI() {
+    document.getElementById('deck-count').innerText = deck.length;
+    
+    // Leaderboard
+    const lb = document.getElementById('leaderboard');
+    lb.innerHTML = [...players].sort((a,b) => b.totalScore - a.totalScore)
+        .map(p => `<div class="leader-tag">${p.name}: ${p.totalScore}</div>`).join('');
 
-    players.forEach(p => {
-        if (p.status === 'active') {
-            let b = document.createElement('button');
-            b.innerText = p.name;
-            b.className = (p.id === currentPlayerIndex) ? 'hit' : 'stay';
-            b.onclick = () => {
-                processCard(p, pendingActionCard);
-                document.getElementById('target-modal').style.display = 'none';
-                if (players[currentPlayerIndex].status !== 'active') nextTurn();
-            };
-            btns.appendChild(b);
-        }
-    });
-    document.getElementById('target-modal').style.display = 'flex';
-}
-
-function hasDuplicate(player) {
-    let nums = player.roundHand.filter(c => c.type === 'number' && c.val > 0).map(c => c.val);
-    return new Set(nums).size !== nums.length;
-}
-
-function log(msg) { document.getElementById('game-log').innerText = msg; }
-
-function updateUI() {
-    document.getElementById('deck-count-circle').innerText = deck.length;
-    let sorted = [...players].sort((a,b) => b.totalScore - a.totalScore);
-    document.getElementById('leaderboard-list').innerHTML = sorted.map(p => `
-        <div class="leader-item">${p.name}: <b>${p.totalScore}</b></div>
-    `).join('');
-
-    const list = document.getElementById('players-list');
-    list.innerHTML = '';
+    // Player Rows
+    const container = document.getElementById('players-container');
+    container.innerHTML = '';
     players.forEach((p, i) => {
-        let div = document.createElement('div');
-        div.className = `player-row ${i === currentPlayerIndex ? 'active-turn' : ''}`;
-        div.innerHTML = `
+        const row = document.createElement('div');
+        row.className = `player-row ${i === currentPlayerIndex ? 'active' : ''}`;
+        row.innerHTML = `
             <div class="player-info">
-                <b>${p.name}</b> [${p.totalScore}]<br>
-                <small style="color:${p.status === 'active' ? '#00ff87' : '#ff4b2b'}">${p.status.toUpperCase()}</small>
+                <strong>${p.name}</strong><br>
+                <small>${p.status.toUpperCase()}</small>
             </div>
-            <div class="hand-container">
-                ${p.roundHand.map(c => `<div class="card ${c.type} ${p.status === 'busted' ? 'busted' : ''}">${c.label}</div>`).join('')}
+            <div class="hand">
+                ${p.roundHand.map(c => `<div class="card ${c.type}">${c.type === 'mod' ? (c.mode==='mult'?'x'+c.val:'+'+c.val) : c.val}</div>`).join('')}
             </div>
+            <div class="round-total">${calculateRoundScore(p)}</div>
         `;
-        list.appendChild(div);
+        container.appendChild(row);
     });
-    if (players[currentPlayerIndex]) document.getElementById('turn-display').innerText = `${players[currentPlayerIndex].name}'s Turn`;
+
+    document.getElementById('turn-indicator').innerText = `${players[currentPlayerIndex].name}'s Turn`;
 }
 
-document.getElementById('start-btn').onclick = initGame;
-document.getElementById('twist-btn').onclick = twist;
-document.getElementById('stay-btn').onclick = stay;
+function log(m) { document.getElementById('game-log').innerText = m; }
 
+document.getElementById('hit-btn').onclick = processHit;
+document.getElementById('stay-btn').onclick = () => {
+    players[currentPlayerIndex].status = 'stayed';
+    bankScore(players[currentPlayerIndex]);
+    moveToNextPlayer();
+};
