@@ -7,11 +7,9 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
     <div id="setup-screen" class="screen">
         <div class="setup-box">
             <h1>Flip 7 Setup</h1>
-            <p>Enter number of players and their names:</p>
             <input type="number" id="player-count-input" value="3" min="1" max="13">
             <div id="name-inputs-container"></div>
             <button id="start-game-btn" class="hit-btn">START GAME</button>
@@ -20,13 +18,9 @@
 
     <div id="game-screen" class="screen" style="display:none;">
         <header id="scoreboard">
-            <div class="deck-area">
-                <div id="deck-count-display">0</div>
-                <small>DECK</small>
-            </div>
+            <div class="deck-area"><div id="deck-count-display">0</div><small>DECK</small></div>
             <div id="leaderboard-display"></div>
         </header>
-
         <div id="game-controls">
             <h2 id="turn-indicator">Player's Turn</h2>
             <div class="btn-group">
@@ -35,7 +29,6 @@
             </div>
             <div id="game-log-box">Round 1 Started</div>
         </div>
-
         <div id="players-list-display"></div>
     </div>
 
@@ -52,7 +45,6 @@
             <button onclick="location.reload()" class="hit-btn">NEW CHAMPIONSHIP</button>
         </div>
     </div>
-
     <script src="script.js"></script>
 </body>
 </html>
