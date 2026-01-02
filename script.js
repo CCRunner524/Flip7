@@ -1,137 +1,161 @@
+/** * FLIP 7 - ONE-SCREEN CHAMPIONSHIP
+ * FIXED: Initialization, Targeting, and Second Chance Logic
+ */
+
 let deck = [];
 let players = [];
 let currentPlayerIndex = 0;
 const WIN_SCORE = 200;
 
-// 1. Deck Generation (94 Cards Total)
+// --- DECK INITIALIZATION (94 Cards) ---
 function createDeck() {
     let d = [];
-    // Numbers: 0(1), 1(1), 2(2)... 12(12) = 79 cards
+    // Number cards 0 to 12 (specific counts per prompt)
     for (let n = 0; n <= 12; n++) {
         let count = (n === 0 || n === 1) ? 1 : n;
-        for (let i = 0; i < count; i++) d.push({ type: 'number', val: n });
+        for (let i = 0; i < count; i++) d.push({ type: 'number', val: n, label: n.toString() });
     }
-    // Actions
-    for (let i = 0; i < 3; i++) d.push({ type: 'action', val: 'FREEZE' });
-    for (let i = 0; i < 3; i++) d.push({ type: 'action', val: 'FLIP 3' });
-    for (let i = 0; i < 3; i++) d.push({ type: 'action', val: 'CHANCE' });
-    // Modifiers
-    [2, 4, 6, 8, 10].forEach(v => d.push({ type: 'mod', val: v, mode: 'add' }));
-    d.push({ type: 'mod', val: 2, mode: 'mult' });
+    // Action Cards (3 of each)
+    for (let i = 0; i < 3; i++) d.push({ type: 'action', val: 'FREEZE', label: 'FRZ' });
+    for (let i = 0; i < 3; i++) d.push({ type: 'action', val: 'FLIP 3', label: 'FL3' });
+    for (let i = 0; i < 3; i++) d.push({ type: 'action', val: 'CHANCE', label: '2nd' });
+    // Modifier Cards
+    [2, 4, 6, 8, 10].forEach(v => d.push({ type: 'mod', val: v, mode: 'add', label: '+' + v }));
+    d.push({ type: 'mod', val: 2, mode: 'mult', label: 'x2' });
 
     return d.sort(() => Math.random() - 0.5);
 }
 
-// 2. Setup Logic
-const playerCountInput = document.getElementById('player-count');
-playerCountInput.addEventListener('input', updateNameInputs);
+// --- SETUP SCREEN LOGIC ---
+const countInput = document.getElementById('player-count-input');
+const inputsContainer = document.getElementById('name-inputs-container');
 
-function updateNameInputs() {
-    const container = document.getElementById('name-inputs');
-    container.innerHTML = '';
-    for (let i = 0; i < playerCountInput.value; i++) {
-        container.innerHTML += `<input type="text" placeholder="Player ${i+1}" class="p-name">`;
+function refreshInputs() {
+    inputsContainer.innerHTML = '';
+    let count = parseInt(countInput.value) || 1;
+    for (let i = 0; i < count; i++) {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = `Player ${i + 1}`;
+        input.className = 'player-name-field';
+        inputsContainer.appendChild(input);
     }
 }
-updateNameInputs();
+
+countInput.addEventListener('change', refreshInputs);
+refreshInputs(); // Run once at start
 
 document.getElementById('start-game-btn').onclick = () => {
-    const names = Array.from(document.querySelectorAll('.p-name')).map(i => i.value || i.placeholder);
-    players = names.map(n => ({ 
-        name: n, totalScore: 0, roundHand: [], status: 'active', hasSecondChance: false 
+    const fields = document.querySelectorAll('.player-name-field');
+    players = Array.from(fields).map(f => ({
+        name: f.value || f.placeholder,
+        totalScore: 0,
+        roundHand: [],
+        status: 'active',
+        hasSecondChance: false
     }));
-    deck = createDeck();
-    document.getElementById('setup-screen').style.display = 'none';
-    document.getElementById('game-screen').style.display = 'block';
-    renderUI();
+
+    if (players.length > 0) {
+        deck = createDeck();
+        document.getElementById('setup-screen').style.display = 'none';
+        document.getElementById('game-screen').style.display = 'block';
+        renderUI();
+    }
 };
 
-// 3. Core Mechanics
-function processHit() {
+// --- GAMEPLAY MECHANICS ---
+function handleHit() {
     if (deck.length === 0) deck = createDeck();
     let card = deck.pop();
     let player = players[currentPlayerIndex];
 
+    // Only Freeze and Flip 3 trigger the targeting popup
     if (card.val === 'FREEZE' || card.val === 'FLIP 3') {
-        showTargetModal(card);
+        openTargetModal(card);
     } else {
         applyCard(player, card);
-        moveToNextPlayer();
+        nextTurn();
     }
 }
 
 function applyCard(player, card) {
     if (player.status !== 'active') return;
 
-    // Second Chance Logic
+    // 1. Check Second Chance Logic (Max 1 per hand)
     if (card.val === 'CHANCE') {
-        player.hasSecondChance = true;
-        player.roundHand.push(card);
+        if (!player.hasSecondChance) {
+            player.hasSecondChance = true;
+            player.roundHand.push(card);
+        } else {
+            // Already has one, card is essentially discarded/ignored
+            log(`${player.name} already has a Second Chance.`);
+        }
     } 
-    // Modifier/Number Logic
+    // 2. Number Cards & Busting
     else if (card.type === 'number') {
-        if (checkBust(player, card.val)) {
+        let isDuplicate = card.val !== 0 && player.roundHand.some(c => c.val === card.val);
+        
+        if (isDuplicate) {
             if (player.hasSecondChance) {
+                // Remove the Second Chance card and ignore the new card
                 player.hasSecondChance = false;
                 player.roundHand = player.roundHand.filter(c => c.val !== 'CHANCE');
-                log(`${player.name} used Second Chance! Bust avoided.`);
+                log(`🛡️ ${player.name} used Second Chance! Duplicate ${card.val} discarded.`);
             } else {
                 player.status = 'busted';
-                log(`${player.name} BUSTED!`);
+                player.roundHand.push(card);
+                log(`💥 ${player.name} BUSTED on ${card.val}!`);
             }
         } else {
             player.roundHand.push(card);
         }
-    } else {
+    } 
+    // 3. Modifiers (+X or x2)
+    else {
         player.roundHand.push(card);
     }
-    
-    // Check Flip 7 Limit (Unique Number Cards Only)
+
+    // 4. Check for Flip 7 Bonus (7 Unique Number cards)
     const uniqueNums = new Set(player.roundHand.filter(c => c.type === 'number').map(c => c.val));
-    if (uniqueNums.size >= 7) {
+    if (uniqueNums.size === 7) {
         player.status = 'stayed';
+        log(`🌟 ${player.name} ACHIEVED FLIP 7!`);
         bankScore(player);
-        log(`${player.name} reached 7 unique cards!`);
     }
 
     renderUI();
 }
 
-function checkBust(player, newVal) {
-    if (newVal === 0) return false;
-    return player.roundHand.some(c => c.val === newVal);
-}
-
-// 4. Scoring Order: (Numbers * Mult) + Additives
-function calculateRoundScore(player) {
+// --- SCORING: (Sum * Mult) + Additive ---
+function getRoundTotal(player) {
     if (player.status === 'busted') return 0;
-    let numSum = 0;
+    
+    let baseSum = 0;
     let multiplier = 1;
-    let additives = 0;
+    let additions = 0;
+    let uniqueNums = new Set();
 
     player.roundHand.forEach(c => {
-        if (c.type === 'number') numSum += c.val;
-        if (c.type === 'mod') {
+        if (c.type === 'number') {
+            baseSum += c.val;
+            if (c.val > 0) uniqueNums.add(c.val);
+        } else if (c.type === 'mod') {
             if (c.mode === 'mult') multiplier = c.val;
-            else additives += c.val;
+            else additions += c.val;
         }
     });
 
-    let score = (numSum * multiplier) + additives;
-    // Flip 7 Bonus
-    const uniqueCount = new Set(player.roundHand.filter(c => c.type === 'number').map(c => c.val)).size;
-    if (uniqueCount >= 7) score += 15;
-    
-    return score;
+    let total = (baseSum * multiplier) + additions;
+    if (uniqueNums.size === 7) total += 15; // Flip 7 Bonus
+    return total;
 }
 
-// 5. Action Handlers (Targeting)
-function showTargetModal(card) {
+// --- TURN & TARGETING ---
+function openTargetModal(card) {
     document.getElementById('modal-overlay').style.display = 'flex';
-    document.getElementById('modal-title').innerText = `Assign ${card.val}`;
-    const list = document.getElementById('target-buttons');
-    const container = document.getElementById('target-list');
-    container.innerHTML = '';
+    document.getElementById('modal-title-text').innerText = `Assign ${card.val}`;
+    const grid = document.getElementById('target-buttons-grid');
+    grid.innerHTML = '';
 
     players.forEach((p, idx) => {
         if (p.status === 'active') {
@@ -141,33 +165,34 @@ function showTargetModal(card) {
             btn.onclick = () => {
                 if (card.val === 'FREEZE') {
                     p.status = 'stayed';
+                    p.roundHand.push(card);
                     bankScore(p);
                 } else if (card.val === 'FLIP 3') {
+                    p.roundHand.push(card);
                     executeFlip3(p);
                 }
                 document.getElementById('modal-overlay').style.display = 'none';
-                moveToNextPlayer();
+                nextTurn();
             };
-            container.appendChild(btn);
+            grid.appendChild(btn);
         }
     });
 }
 
-async function executeFlip3(player) {
+async function executeFlip3(p) {
     for (let i = 0; i < 3; i++) {
-        if (player.status === 'active') {
+        if (p.status === 'active') {
             if (deck.length === 0) deck = createDeck();
-            applyCard(player, deck.pop());
-            await new Promise(r => setTimeout(r, 400)); // Visual delay
+            applyCard(p, deck.pop());
+            await new Promise(r => setTimeout(r, 300)); // Delay for visual flip
         }
     }
 }
 
-// 6. Turn Management
-function moveToNextPlayer() {
+function nextTurn() {
     const actives = players.filter(p => p.status === 'active');
     if (actives.length === 0) {
-        startNewRound();
+        setTimeout(resetRound, 2000);
         return;
     }
 
@@ -178,52 +203,59 @@ function moveToNextPlayer() {
     renderUI();
 }
 
-function bankScore(player) {
-    player.totalScore += calculateRoundScore(player);
-    if (player.totalScore >= WIN_SCORE) {
-        document.getElementById('winner-name').innerText = `${player.name} WINS!`;
+function stayCurrentPlayer() {
+    let p = players[currentPlayerIndex];
+    p.status = 'stayed';
+    bankScore(p);
+    nextTurn();
+}
+
+function bankScore(p) {
+    p.totalScore += getRoundTotal(p);
+    if (p.totalScore >= WIN_SCORE) {
+        document.getElementById('winner-display-name').innerText = `${p.name} WINS!`;
         document.getElementById('win-screen').style.display = 'flex';
     }
 }
 
-function startNewRound() {
-    log("Round Over. Resetting hands...");
-    setTimeout(() => {
-        players.forEach(p => {
-            if (p.status === 'active') bankScore(p); // Bank those who stayed
-            p.roundHand = [];
-            p.status = 'active';
-            p.hasSecondChance = false;
-        });
-        currentPlayerIndex = 0;
-        renderUI();
-    }, 2000);
+function resetRound() {
+    players.forEach(p => {
+        p.roundHand = [];
+        p.status = 'active';
+        p.hasSecondChance = false;
+    });
+    currentPlayerIndex = 0;
+    log("New Round Started!");
+    renderUI();
 }
 
-// 7. UI Update
+// --- UI UPDATE ---
 function renderUI() {
-    document.getElementById('deck-count').innerText = deck.length;
+    document.getElementById('deck-count-display').innerText = deck.length;
     
-    // Leaderboard
-    const lb = document.getElementById('leaderboard');
+    const lb = document.getElementById('leaderboard-display');
     lb.innerHTML = [...players].sort((a,b) => b.totalScore - a.totalScore)
         .map(p => `<div class="leader-tag">${p.name}: ${p.totalScore}</div>`).join('');
 
-    // Player Rows
-    const container = document.getElementById('players-container');
+    const container = document.getElementById('players-list-display');
     container.innerHTML = '';
-    players.forEach((p, i) => {
+    
+    players.forEach((p, idx) => {
         const row = document.createElement('div');
-        row.className = `player-row ${i === currentPlayerIndex ? 'active' : ''}`;
+        row.className = `player-row ${idx === currentPlayerIndex ? 'active' : ''}`;
         row.innerHTML = `
             <div class="player-info">
-                <strong>${p.name}</strong><br>
+                <b>${p.name}</b><br>
                 <small>${p.status.toUpperCase()}</small>
+                ${p.hasSecondChance ? '<br><small>🛡️ CHANCE</small>' : ''}
             </div>
             <div class="hand">
-                ${p.roundHand.map(c => `<div class="card ${c.type}">${c.type === 'mod' ? (c.mode==='mult'?'x'+c.val:'+'+c.val) : c.val}</div>`).join('')}
+                ${p.roundHand.map(c => `<div class="card ${c.type}">${c.label}</div>`).join('')}
             </div>
-            <div class="round-total">${calculateRoundScore(p)}</div>
+            <div class="round-total-box">
+                <small>ROUND</small><br>
+                <span class="round-score-val">${getRoundTotal(p)}</span>
+            </div>
         `;
         container.appendChild(row);
     });
@@ -231,11 +263,7 @@ function renderUI() {
     document.getElementById('turn-indicator').innerText = `${players[currentPlayerIndex].name}'s Turn`;
 }
 
-function log(m) { document.getElementById('game-log').innerText = m; }
+function log(msg) { document.getElementById('game-log-box').innerText = msg; }
 
-document.getElementById('hit-btn').onclick = processHit;
-document.getElementById('stay-btn').onclick = () => {
-    players[currentPlayerIndex].status = 'stayed';
-    bankScore(players[currentPlayerIndex]);
-    moveToNextPlayer();
-};
+document.getElementById('hit-btn-main').onclick = handleHit;
+document.getElementById('stay-btn-main').onclick = stayCurrentPlayer;
