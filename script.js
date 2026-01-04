@@ -1,5 +1,7 @@
 /** * FLIP 7 - FULL CHAINING VERSION
- * Fix: Explicit shuffle function called every time the deck is reset.
+ * Updated: 
+ * 1. Auto-sorting hand (Numbers 0-12, then Actions/Mods).
+ * 2. Second Chance Popup/Notification.
  */
 
 let deck = [];
@@ -8,9 +10,7 @@ let currentPlayerIndex = 0;
 const WIN_SCORE = 200;
 
 // --- 1. THE SHUFFLE ENGINE ---
-// We pull this out so we can call it anytime, anywhere.
 function shuffle(array) {
-    console.log("SHUFFLING DECK..."); // Verify this in your console
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [array[i], array[j]] = [array[j], array[i]];
@@ -21,21 +21,17 @@ function shuffle(array) {
 // --- 2. DECK INITIALIZATION ---
 function createDeck() {
     let d = [];
-    // Number Cards
     for (let n = 0; n <= 12; n++) {
         let count = (n === 0 || n === 1) ? 1 : n;
         for (let i = 0; i < count; i++) d.push({ type: 'number', val: n, label: n.toString() });
     }
-    // Action Cards
     for (let i = 0; i < 3; i++) d.push({ type: 'action', val: 'FREEZE', label: 'FRZ' });
     for (let i = 0; i < 3; i++) d.push({ type: 'action', val: 'FLIP 3', label: 'FL3' });
     for (let i = 0; i < 3; i++) d.push({ type: 'action', val: 'CHANCE', label: '2nd' });
     
-    // Modifiers
     [2, 4, 6, 8, 10].forEach(v => d.push({ type: 'mod', val: v, mode: 'add', label: '+' + v }));
     d.push({ type: 'mod', val: 2, mode: 'mult', label: 'x2' });
 
-    // Force a shuffle before returning the new deck
     return shuffle(d);
 }
 
@@ -62,7 +58,7 @@ document.getElementById('start-game-btn').onclick = () => {
         name: f.value || f.placeholder, totalScore: 0, roundHand: [],
         status: 'active', hasSecondChance: false
     }));
-    deck = createDeck(); // Initial Shuffle
+    deck = createDeck();
     document.getElementById('setup-screen').style.display = 'none';
     document.getElementById('game-screen').style.display = 'block';
     renderUI();
@@ -72,7 +68,6 @@ document.getElementById('start-game-btn').onclick = () => {
 async function handleHit() {
     toggleControls(false);
     
-    // If deck is empty, create AND shuffle a new one
     if (deck.length === 0) {
         log("Deck empty! Reshuffling...");
         deck = createDeck(); 
@@ -88,6 +83,7 @@ async function handleHit() {
 async function processCard(player, card) {
     if (player.status !== 'active') return;
 
+    // A: Targetable Actions
     if (card.val === 'FREEZE' || card.val === 'FLIP 3') {
         const target = await openTargetModal(card);
         target.roundHand.push(card);
@@ -101,13 +97,14 @@ async function processCard(player, card) {
             await executeFlip3(target);
         }
     } 
+    // B: Simple Cards (Now Async to allow for the 2nd Chance Popup)
     else {
-        applySimpleCard(player, card);
+        await applySimpleCard(player, card);
     }
     renderUI();
 }
 
-function applySimpleCard(player, card) {
+async function applySimpleCard(player, card) {
     if (player.status !== 'active') return;
 
     if (card.val === 'CHANCE') {
@@ -119,8 +116,11 @@ function applySimpleCard(player, card) {
         player.roundHand.push(card);
     } else if (card.type === 'number') {
         let isDuplicate = card.val !== 0 && player.roundHand.some(c => c.val === card.val);
+        
         if (isDuplicate) {
             if (player.hasSecondChance) {
+                // SECOND CHANCE POPUP LOGIC
+                await showNoticeModal("🛡️ SECOND CHANCE!", `${player.name} drew a duplicate ${card.val}, but the Second Chance saved them! Card discarded.`);
                 player.hasSecondChance = false;
                 player.roundHand = player.roundHand.filter(c => c.val !== 'CHANCE');
                 log(`🛡️ ${player.name} used 2nd Chance!`);
@@ -134,6 +134,7 @@ function applySimpleCard(player, card) {
         }
     }
 
+    // Check Flip 7 Limit
     const uniqueNums = new Set(player.roundHand.filter(c => c.type === 'number').map(c => c.val));
     if (uniqueNums.size === 7) {
         player.status = 'stayed';
@@ -146,7 +147,6 @@ async function executeFlip3(target) {
     for (let i = 0; i < 3; i++) {
         if (target.status === 'active') {
             await new Promise(r => setTimeout(r, 500)); 
-            // Check deck here too just in case it runs out during a Flip 3
             if (deck.length === 0) deck = createDeck();
             let nextCard = deck.pop();
             await processCard(target, nextCard);
@@ -155,7 +155,7 @@ async function executeFlip3(target) {
     }
 }
 
-// --- MODAL & UI ---
+// --- MODALS ---
 function openTargetModal(card) {
     return new Promise((resolve) => {
         document.getElementById('modal-overlay').style.display = 'flex';
@@ -177,6 +177,25 @@ function openTargetModal(card) {
     });
 }
 
+// New helper for the Second Chance notification
+function showNoticeModal(title, message) {
+    return new Promise((resolve) => {
+        document.getElementById('modal-overlay').style.display = 'flex';
+        document.getElementById('modal-title-text').innerText = title;
+        const grid = document.getElementById('target-buttons-grid');
+        grid.innerHTML = `<div style="color:white; text-align:center; padding: 20px; font-size: 1.1em;">${message}</div>`;
+        const btn = document.createElement('button');
+        btn.innerText = "CONTINUE";
+        btn.className = "hit-btn";
+        btn.onclick = () => {
+            document.getElementById('modal-overlay').style.display = 'none';
+            resolve();
+        };
+        grid.appendChild(btn);
+    });
+}
+
+// --- UTILS ---
 function toggleControls(enable) {
     document.getElementById('hit-btn-main').disabled = !enable;
     document.getElementById('stay-btn-main').disabled = !enable;
@@ -224,10 +243,6 @@ function bankScore(p) {
 }
 
 function resetRound() {
-    // OPTIONAL: If you want a fresh shuffled deck EVERY round, 
-    // uncomment the line below:
-    // deck = createDeck(); 
-    
     players.forEach(p => { p.roundHand = []; p.status = 'active'; p.hasSecondChance = false; });
     currentPlayerIndex = 0;
     renderUI();
@@ -241,12 +256,23 @@ function renderUI() {
 
     const container = document.getElementById('players-list-display');
     container.innerHTML = '';
+    
     players.forEach((p, idx) => {
+        // --- FEATURE 1: SORTING THE HAND ---
+        const sortedHand = [...p.roundHand].sort((a, b) => {
+            // Sort numbers 0-12 low to high
+            if (a.type === 'number' && b.type === 'number') return a.val - b.val;
+            // Put numbers before actions/modifiers
+            if (a.type === 'number' && b.type !== 'number') return -1;
+            if (a.type !== 'number' && b.type === 'number') return 1;
+            return 0;
+        });
+
         const row = document.createElement('div');
         row.className = `player-row ${idx === currentPlayerIndex ? 'active' : ''}`;
         row.innerHTML = `
             <div class="player-info"><b>${p.name}</b><br><small>${p.status.toUpperCase()}</small></div>
-            <div class="hand">${p.roundHand.map(c => `<div class="card ${c.type}">${c.label}</div>`).join('')}</div>
+            <div class="hand">${sortedHand.map(c => `<div class="card ${c.type}">${c.label}</div>`).join('')}</div>
             <div class="round-total-box"><small>ROUND</small><br><span class="round-score-val">${getRoundTotal(p)}</span></div>
         `;
         container.appendChild(row);
