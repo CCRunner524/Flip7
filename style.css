@@ -1,32 +1,25 @@
-:root {
-    --bg: #121212; --card: #1e1e1e; --hit: #2ecc71; --stay: #3498db; --gold: #f1c40f;
+#modal-overlay {
+    display: none; /* Hidden by default */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    
+    /* CHANGE THIS: Use a very light tint or 'transparent' */
+    background-color: rgba(0, 0, 0, 0.1); 
+    
+    /* Ensure it doesn't block mouse clicks on the buttons inside */
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
 }
-body { background: var(--bg); color: white; font-family: sans-serif; margin: 0; }
-.screen { padding: 20px; }
-.setup-box { max-width: 600px; margin: 40px auto; background: var(--card); padding: 25px; border-radius: 12px; text-align: center; }
-#name-inputs-container { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0; }
-#name-inputs-container input { padding: 10px; border-radius: 4px; border: none; }
 
-#scoreboard { display: flex; background: #000; padding: 15px; border-bottom: 3px solid var(--hit); position: sticky; top: 0; z-index: 10; }
-#leaderboard-display { display: flex; gap: 10px; overflow-x: auto; align-items: center; }
-.leader-tag { background: #333; padding: 5px 12px; border-radius: 15px; font-size: 0.9rem; white-space: nowrap; }
-
-.player-row { display: flex; align-items: center; background: var(--card); margin: 8px 0; padding: 12px; border-radius: 8px; border: 2px solid transparent; }
-.player-row.active { border-color: var(--hit); background: #252525; }
-.player-info { width: 140px; flex-shrink: 0; }
-.hand { flex-grow: 1; display: flex; gap: 8px; overflow-x: auto; padding: 0 15px; }
-.round-total-box { width: 100px; text-align: right; border-left: 1px solid #444; padding-left: 10px; }
-.round-score-val { color: var(--gold); font-size: 1.4rem; font-weight: bold; }
-
-.card { min-width: 45px; height: 60px; background: white; color: black; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 2px 2px 5px rgba(0,0,0,0.5); }
-.card.action { background: var(--gold); }
-.card.mod { background: #9b59b6; color: white; }
-
-#game-controls { text-align: center; padding: 20px; }
-.btn-group button { padding: 15px 45px; font-size: 1.2rem; margin: 0 10px; border: none; border-radius: 8px; cursor: pointer; color: white; font-weight: bold; }
-.hit-btn { background: var(--hit); }
-.stay-btn { background: var(--stay); }
-
-.modal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 100; }
-.modal-content { background: var(--card); padding: 30px; border-radius: 15px; border: 2px solid var(--hit); max-width: 90%; }
-#target-buttons-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-top: 20px; }
+/* To make sure the box itself is still readable on a clear background */
+#target-buttons-grid, .modal-content {
+    background: #222; /* Keep the inner box dark */
+    padding: 20px;
+    border: 3px solid #ffcc00; /* Add a gold border so it stands out */
+    border-radius: 15px;
+    box-shadow: 0px 0px 50px rgba(0,0,0,0.8); /* Add a shadow for depth */
+}
