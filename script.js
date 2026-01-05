@@ -1,7 +1,8 @@
 /** * FLIP 7 - FULL CHAINING VERSION
  * Updated: 
- * 1. Auto-sorting hand (Numbers 0-12, then Actions/Mods).
- * 2. Second Chance Popup/Notification.
+ * 1. FIXED: Modifiers no longer cause busts.
+ * 2. Auto-sorting hand (Numbers 0-12, then Actions/Mods).
+ * 3. Second Chance Popup/Notification.
  */
 
 let deck = [];
@@ -83,7 +84,6 @@ async function handleHit() {
 async function processCard(player, card) {
     if (player.status !== 'active') return;
 
-    // A: Targetable Actions
     if (card.val === 'FREEZE' || card.val === 'FLIP 3') {
         const target = await openTargetModal(card);
         target.roundHand.push(card);
@@ -97,7 +97,6 @@ async function processCard(player, card) {
             await executeFlip3(target);
         }
     } 
-    // B: Simple Cards (Now Async to allow for the 2nd Chance Popup)
     else {
         await applySimpleCard(player, card);
     }
@@ -115,11 +114,11 @@ async function applySimpleCard(player, card) {
     } else if (card.type === 'mod') {
         player.roundHand.push(card);
     } else if (card.type === 'number') {
-        let isDuplicate = card.val !== 0 && player.roundHand.some(c => c.val === card.val);
+        // --- FIX: Only check duplicates against other cards of type 'number' ---
+        let isDuplicate = card.val !== 0 && player.roundHand.some(c => c.type === 'number' && c.val === card.val);
         
         if (isDuplicate) {
             if (player.hasSecondChance) {
-                // SECOND CHANCE POPUP LOGIC
                 await showNoticeModal("🛡️ SECOND CHANCE!", `${player.name} drew a duplicate ${card.val}, but the Second Chance saved them! Card discarded.`);
                 player.hasSecondChance = false;
                 player.roundHand = player.roundHand.filter(c => c.val !== 'CHANCE');
@@ -134,7 +133,6 @@ async function applySimpleCard(player, card) {
         }
     }
 
-    // Check Flip 7 Limit
     const uniqueNums = new Set(player.roundHand.filter(c => c.type === 'number').map(c => c.val));
     if (uniqueNums.size === 7) {
         player.status = 'stayed';
@@ -177,7 +175,6 @@ function openTargetModal(card) {
     });
 }
 
-// New helper for the Second Chance notification
 function showNoticeModal(title, message) {
     return new Promise((resolve) => {
         document.getElementById('modal-overlay').style.display = 'flex';
@@ -258,11 +255,9 @@ function renderUI() {
     container.innerHTML = '';
     
     players.forEach((p, idx) => {
-        // --- FEATURE 1: SORTING THE HAND ---
+        // Sort hand: Numbers first (0-12), then Actions/Mods
         const sortedHand = [...p.roundHand].sort((a, b) => {
-            // Sort numbers 0-12 low to high
             if (a.type === 'number' && b.type === 'number') return a.val - b.val;
-            // Put numbers before actions/modifiers
             if (a.type === 'number' && b.type !== 'number') return -1;
             if (a.type !== 'number' && b.type === 'number') return 1;
             return 0;
