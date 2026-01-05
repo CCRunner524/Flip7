@@ -40,26 +40,29 @@ body { background: var(--bg); color: white; font-family: sans-serif; margin: 0; 
 .stay-btn { background: var(--stay); }
 button:disabled { filter: grayscale(1); opacity: 0.5; cursor: not-allowed; }
 
-/* --- STRATEGIC MODAL (TRANSPARENT BACKGROUND) --- */
+/* --- STRATEGIC MODAL (ULTRA TRANSPARENT) --- */
 #modal-overlay { 
     position: fixed; 
     inset: 0; 
-    background: rgba(0,0,0,0.3); /* Low opacity to see the board */
-    backdrop-filter: blur(2px); /* Slight blur to focus on popup */
+    /* 0.05 is almost invisible, just enough to show a slight tint */
+    background: rgba(0, 0, 0, 0.05); 
+    /* Removed backdrop-filter: blur to keep background cards sharp */
     display: none; 
     align-items: center; 
     justify-content: center; 
     z-index: 100; 
 }
+
 .modal-content { 
-    background: var(--card); 
+    background: #1e1e1e; /* Keep the box itself dark so text is readable */
     padding: 30px; 
     border-radius: 15px; 
     border: 3px solid var(--gold); 
     max-width: 400px; 
     width: 90%; 
     text-align: center;
-    box-shadow: 0 0 30px rgba(0,0,0,0.8);
+    /* Strong shadow helps the box stand out against the clear background */
+    box-shadow: 0 0 50px rgba(0,0,0,1); 
 }
 #target-buttons-grid { 
     display: grid; 
