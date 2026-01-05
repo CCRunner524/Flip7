@@ -1,25 +1,77 @@
-#modal-overlay {
-    display: none; /* Hidden by default */
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    
-    /* CHANGE THIS: Use a very light tint or 'transparent' */
-    background-color: rgba(0, 0, 0, 0.1); 
-    
-    /* Ensure it doesn't block mouse clicks on the buttons inside */
-    z-index: 1000;
-    justify-content: center;
+/* --- GENERAL STYLES --- */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #1a1a1a;
+    color: white;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
     align-items: center;
 }
 
-/* To make sure the box itself is still readable on a clear background */
-#target-buttons-grid, .modal-content {
-    background: #222; /* Keep the inner box dark */
-    padding: 20px;
-    border: 3px solid #ffcc00; /* Add a gold border so it stands out */
-    border-radius: 15px;
-    box-shadow: 0px 0px 50px rgba(0,0,0,0.8); /* Add a shadow for depth */
+#setup-screen, #game-screen {
+    width: 90%;
+    max-width: 800px;
+    margin-top: 20px;
+    text-align: center;
 }
+
+/* --- PLAYER ROWS --- */
+.player-row {
+    background: #2a2a2a;
+    border: 2px solid #444;
+    border-radius: 10px;
+    margin: 10px 0;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    transition: transform 0.2s;
+}
+
+.player-row.active {
+    border-color: #00ffcc;
+    box-shadow: 0 0 15px rgba(0, 255, 204, 0.3);
+    transform: scale(1.02);
+}
+
+.player-info {
+    width: 100px;
+    text-align: left;
+    line-height: 1.2;
+}
+
+.hand {
+    flex-grow: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.round-total-box {
+    width: 80px;
+    background: #333;
+    padding: 5px;
+    border-radius: 5px;
+    border: 1px solid #555;
+}
+
+.round-score-val {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #ffcc00;
+}
+
+/* --- CARD STYLING --- */
+.card {
+    width: 35px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 1.1em;
+    color: white;
+    text-shadow: 1px 1px 2px black;
+    border: 1px solid rgba
