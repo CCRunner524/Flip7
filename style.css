@@ -7,60 +7,54 @@
     --danger: #e74c3c;
 }
 
-body { background: var(--bg); color: white; font-family: sans-serif; margin: 0; }
+body { background: var(--bg); color: white; font-family: sans-serif; margin: 0; padding: 0; }
 
-/* --- HEADER --- */
+/* --- SETUP SCREEN STYLE --- */
+.setup-box { 
+    max-width: 500px; margin: 100px auto; background: var(--card); 
+    padding: 30px; border-radius: 15px; text-align: center; border: 1px solid #333; 
+}
+#name-inputs-container { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0; }
+#name-inputs-container input { padding: 10px; background: #111; color: white; border: 1px solid #444; border-radius: 5px; }
+
+/* --- SCOREBOARD (HORIZONTAL) --- */
 #scoreboard { 
-    display: flex; background: #000; padding: 15px 25px; 
+    display: flex; flex-direction: row; /* Force Horizontal */
+    background: #000; padding: 15px 25px; 
     border-bottom: 4px solid var(--hit); position: sticky; top: 0; z-index: 10; 
     justify-content: space-between; align-items: center;
 }
+#leaderboard-display { display: flex; flex-direction: row; gap: 10px; overflow-x: auto; }
 .leader-tag { 
-    background: #222; padding: 10px 20px; border-radius: 10px; 
-    font-size: 1.2rem; font-weight: bold; border: 2px solid #444; margin-right: 10px;
+    background: #222; padding: 8px 15px; border-radius: 8px; 
+    font-size: 1.1rem; font-weight: bold; border: 2px solid #444; white-space: nowrap;
 }
-.leader-tag.match-point { border-color: var(--gold); color: var(--gold); transform: scale(1.05); }
+.leader-tag.match-point { border-color: var(--gold); color: var(--gold); }
 
-/* --- STATUS AREA (Prevents Jumping) --- */
-#status-area { text-align: center; margin: 10px 0; min-height: 100px; }
-#game-log-box { 
-    color: var(--hit); font-family: monospace; font-size: 1.1rem; 
-    text-transform: uppercase; margin-bottom: 5px;
-}
-#turn-indicator { margin: 0; color: white; font-size: 1.5rem; }
+/* --- GAMEPLAY LAYOUT --- */
+#status-area { text-align: center; padding: 15px; min-height: 80px; }
+#game-log-box { color: var(--hit); font-family: monospace; text-transform: uppercase; margin-bottom: 5px; }
+#turn-indicator { margin: 0; font-size: 1.4rem; }
 
-/* --- PLAYER ROWS --- */
-.player-row { 
-    display: flex; align-items: center; background: var(--card); 
-    margin: 10px 20px; padding: 12px; border-radius: 10px; border: 3px solid transparent; 
-}
+.player-row { display: flex; align-items: center; background: var(--card); margin: 10px 15px; padding: 12px; border-radius: 10px; border: 3px solid transparent; }
 .player-row.active { border-color: var(--hit); background: #252525; }
-.player-row.match-point { border-color: var(--gold); animation: pulse 2s infinite; }
-@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
-
-.player-info { width: 150px; }
-.hand { flex-grow: 1; display: flex; gap: 8px; overflow-x: auto; }
-.round-total-box { width: 100px; text-align: right; border-left: 1px solid #444; padding-left: 10px; }
-.round-score-val { color: var(--gold); font-size: 1.6rem; font-weight: bold; }
+.player-info { width: 140px; flex-shrink: 0; }
+.hand { flex-grow: 1; display: flex; gap: 8px; overflow-x: auto; padding: 0 10px; }
 
 /* --- CARDS --- */
-.card { 
-    min-width: 45px; height: 65px; background: white; color: black; 
-    border-radius: 5px; display: flex; align-items: center; justify-content: center; 
-    font-weight: bold; font-size: 1.1rem;
-}
+.card { min-width: 45px; height: 65px; background: white; color: black; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.1rem; box-shadow: 2px 2px 5px rgba(0,0,0,0.3); }
 .card.action { background: var(--gold); }
 .card.mod { background: #9b59b6; color: white; }
 
 /* --- MODALS --- */
-#modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.3); display: none; align-items: center; justify-content: center; z-index: 100; }
-.modal-content { background: #1a1a1a; padding: 30px; border-radius: 15px; border: 4px solid var(--gold); text-align: center; }
+#modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 100; }
+.modal-content { background: #1a1a1a; padding: 30px; border-radius: 15px; border: 4px solid var(--gold); text-align: center; min-width: 300px; }
+#target-buttons-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
 
-/* --- CONTROLS --- */
-#game-controls { text-align: center; padding-bottom: 40px; }
+#game-controls { text-align: center; padding: 20px 0 50px; }
 .btn-group button { padding: 15px 40px; font-size: 1.2rem; margin: 0 10px; border: none; border-radius: 8px; cursor: pointer; color: white; font-weight: bold; }
 .hit-btn { background: var(--hit); }
 .stay-btn { background: var(--stay); }
-button:disabled { opacity: 0.3; }
 
+#final-dash-banner { display: none; background: var(--danger); text-align: center; padding: 8px; font-weight: bold; }
 #win-screen { position: fixed; inset: 0; background: rgba(0,0,0,0.95); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 200; }
