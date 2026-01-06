@@ -32,7 +32,7 @@ const inputsContainer = document.getElementById('name-inputs-container');
 
 function refreshInputs() {
     inputsContainer.innerHTML = '';
-    let count = parseInt(countInput.value) || 2;
+    let count = Math.min(parseInt(countInput.value) || 2, 14);
     for (let i = 0; i < count; i++) {
         const input = document.createElement('input');
         input.type = 'text'; input.placeholder = `Player ${i + 1}`;
@@ -71,12 +71,12 @@ async function handleHit() {
 async function processCard(player, card) {
     if (player.status !== 'active') return;
     if (card.val === 'FREEZE' || card.val === 'FLIP 3') {
-        // Modal title updated here
-        const target = await openTargetModal(card); 
+        const target = await openTargetModal(card);
         target.roundHand.push(card);
         if (card.val === 'FREEZE') {
+            log(`${target.name} frozen!`);
             target.status = 'stayed';
-            player.totalScore += getRoundTotal(target); // Simplified bank
+            target.totalScore += getRoundTotal(target);
         } else {
             await executeFlip3(target);
         }
@@ -93,15 +93,20 @@ async function applySimpleCard(player, card) {
         let isDup = card.val !== 0 && player.roundHand.some(c => c.type === 'number' && c.val === card.val);
         if (isDup) {
             if (player.hasSecondChance) {
+                log("Shield Used!");
                 player.hasSecondChance = false;
                 player.roundHand = player.roundHand.filter(c => c.label !== '2nd CHANCE');
             } else {
+                log(`${player.name} Busted!`);
                 player.status = 'busted';
                 player.roundHand.push(card);
             }
         } else {
             player.roundHand.push(card);
         }
+    }
+    if (new Set(player.roundHand.filter(c => c.type === 'number').map(c => c.val)).size === 7) {
+        log("Flip 7!"); player.status = 'stayed'; player.totalScore += (getRoundTotal(player) + 15);
     }
 }
 
@@ -172,7 +177,6 @@ function openTargetModal(card) {
     return new Promise(resolve => {
         const overlay = document.getElementById('modal-overlay');
         overlay.style.display = 'flex';
-        // Updated text so players know what they are assigning
         document.getElementById('modal-title-text').innerText = `Assign ${card.label} to:`;
         const grid = document.getElementById('target-buttons-grid');
         grid.innerHTML = '';
