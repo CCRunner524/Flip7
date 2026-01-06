@@ -24,7 +24,7 @@ body { background: var(--bg); color: white; font-family: sans-serif; margin: 0; 
 .leader-tag { background: #222; padding: 5px 12px; border-radius: 6px; font-size: 0.9rem; font-weight: bold; border: 1px solid #444; white-space: nowrap; }
 .leader-tag.match-point { border-color: var(--gold); color: var(--gold); }
 
-/* --- STICKY CONTROLS & STATUS --- */
+/* --- STICKY CONTROLS --- */
 #game-header-controls { 
     background: #1a1a1a; padding: 15px; border-bottom: 2px solid #333; 
     position: sticky; top: 55px; z-index: 10; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
@@ -34,16 +34,14 @@ body { background: var(--bg); color: white; font-family: sans-serif; margin: 0; 
 #turn-indicator { margin: 5px 0; font-size: 1.4rem; color: var(--gold); font-weight: bold; }
 
 #game-controls { text-align: center; }
-.btn-group button { padding: 12px 35px; font-size: 1.1rem; margin: 0 8px; border: none; border-radius: 6px; cursor: pointer; color: white; font-weight: bold; transition: transform 0.1s; }
-.btn-group button:active { transform: scale(0.95); }
+.btn-group button { padding: 12px 35px; font-size: 1.1rem; margin: 0 8px; border: none; border-radius: 6px; cursor: pointer; color: white; font-weight: bold; }
 .hit-btn { background: var(--hit); }
 .stay-btn { background: var(--stay); }
 button:disabled { opacity: 0.3; cursor: not-allowed; }
 
 /* --- PLAYER ROWS --- */
-#players-list-display { padding-top: 10px; }
 .player-row { display: flex; align-items: center; background: var(--card); margin: 5px 15px; padding: 8px 12px; border-radius: 8px; border: 2px solid transparent; transition: all 0.3s ease; }
-.player-row.active { border-color: var(--hit); background: #252525; transform: scale(1.01); box-shadow: 0 0 10px rgba(46, 204, 113, 0.2); }
+.player-row.active { border-color: var(--hit); background: #252525; transform: scale(1.01); }
 .player-info { width: 150px; flex-shrink: 0; }
 
 .hand { flex-grow: 1; display: flex; gap: 5px; overflow-x: auto; padding: 0 10px; }
@@ -54,10 +52,16 @@ button:disabled { opacity: 0.3; cursor: not-allowed; }
 .round-total-box { width: 80px; text-align: right; border-left: 1px solid #444; padding-left: 10px; }
 .round-score-val { color: var(--gold); font-size: 1.4rem; font-weight: bold; }
 
-/* --- MODALS --- */
-#modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 100; }
-.modal-content { background: #1a1a1a; padding: 25px; border-radius: 12px; border: 3px solid var(--gold); text-align: center; width: 90%; max-width: 600px; }
+/* --- MODALS (NO BLUR / NO OPACITY) --- */
+#modal-overlay { 
+    position: fixed; inset: 0; background: rgba(0,0,0,0); /* Clear background */
+    display: none; align-items: center; justify-content: center; z-index: 100; 
+}
+.modal-content { 
+    background: #1a1a1a; padding: 25px; border-radius: 12px; border: 5px solid var(--gold); 
+    text-align: center; width: 90%; max-width: 600px; 
+    box-shadow: 0 0 100px rgba(0,0,0,1); /* Deep shadow for focus */
+}
 #target-buttons-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; }
 
-#final-dash-banner { display: none; background: var(--danger); text-align: center; padding: 5px; font-weight: bold; }
 #win-screen { position: fixed; inset: 0; background: rgba(0,0,0,0.95); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 200; }
