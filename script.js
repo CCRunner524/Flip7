@@ -87,15 +87,25 @@ async function processCard(player, card) {
 }
 
 async function applySimpleCard(player, card) {
-    if (card.val === 'CHANCE') { player.hasSecondChance = true; player.roundHand.push(card); }
-    else if (card.type === 'mod') { player.roundHand.push(card); }
-    else if (card.type === 'number') {
+    if (card.val === 'CHANCE') {
+        if (!player.hasSecondChance) {
+            player.hasSecondChance = true;
+            log(`${player.name} is now shielded!`);
+        } else {
+            log(`${player.name} drew another shield (doesn't stack).`);
+        }
+        player.roundHand.push(card);
+    } else if (card.type === 'mod') {
+        player.roundHand.push(card);
+    } else if (card.type === 'number') {
         let isDup = card.val !== 0 && player.roundHand.some(c => c.type === 'number' && c.val === card.val);
         if (isDup) {
             if (player.hasSecondChance) {
-                log("Shield Used!");
+                log("Shield Used! Bust avoided.");
                 player.hasSecondChance = false;
-                player.roundHand = player.roundHand.filter(c => c.label !== '2nd CHANCE');
+                // Remove only the FIRST 2nd Chance card found
+                const chanceIdx = player.roundHand.findIndex(c => c.label === '2nd CHANCE');
+                if (chanceIdx > -1) player.roundHand.splice(chanceIdx, 1);
             } else {
                 log(`${player.name} Busted!`);
                 player.status = 'busted';
@@ -104,9 +114,6 @@ async function applySimpleCard(player, card) {
         } else {
             player.roundHand.push(card);
         }
-    }
-    if (new Set(player.roundHand.filter(c => c.type === 'number').map(c => c.val)).size === 7) {
-        log("Flip 7!"); player.status = 'stayed'; player.totalScore += (getRoundTotal(player) + 15);
     }
 }
 
@@ -123,12 +130,14 @@ async function executeFlip3(target) {
 
 function getRoundTotal(p) {
     if (p.status === 'busted') return 0;
-    let sum = 0, mult = 1, add = 0;
+    let sum = 0, mult = 1, add = 0, unique = new Set();
     p.roundHand.forEach(c => {
-        if (c.type === 'number') sum += c.val;
+        if (c.type === 'number') { sum += c.val; if(c.val > 0) unique.add(c.val); }
         else if (c.type === 'mod') { if (c.mode === 'mult') mult = c.val; else add += c.val; }
     });
-    return (sum * mult) + add;
+    let total = (sum * mult) + add;
+    if (unique.size === 7) total += 15;
+    return total;
 }
 
 function nextTurn() {
@@ -164,10 +173,18 @@ function renderUI() {
     const container = document.getElementById('players-list-display');
     container.innerHTML = '';
     players.forEach((p, idx) => {
+        // --- NUMERICAL SORTING ---
+        const sortedHand = [...p.roundHand].sort((a, b) => {
+            if (a.type === 'number' && b.type === 'number') return a.val - b.val;
+            if (a.type === 'number') return -1;
+            if (b.type === 'number') return 1;
+            return 0;
+        });
+
         const row = document.createElement('div');
         row.className = `player-row ${idx === currentPlayerIndex ? 'active' : ''}`;
-        row.innerHTML = `<div class="player-info"><b>${p.name}</b><br><small>${p.status}</small></div>
-            <div class="hand">${p.roundHand.map(c => `<div class="card ${c.type}">${c.label}</div>`).join('')}</div>
+        row.innerHTML = `<div class="player-info"><b>${p.name}</b> ${p.hasSecondChance ? '🛡️' : ''}<br><small>${p.status}</small></div>
+            <div class="hand">${sortedHand.map(c => `<div class="card ${c.type}">${c.label}</div>`).join('')}</div>
             <div class="round-total-box"><small>ROUND</small><br><span class="round-score-val">${getRoundTotal(p)}</span></div>`;
         container.appendChild(row);
     });
