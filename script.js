@@ -25,20 +25,21 @@ function createDeck() {
     return shuffle(d);
 }
 
-function log(msg) { document.getElementById('game-log-box').innerText = msg; }
+function log(msg) { 
+    const lb = document.getElementById('game-log-box');
+    if(lb) lb.innerText = msg; 
+}
 
-// --- MODAL POPUPS ---
+// --- MODALS ---
 function showNoticeModal(title, message) {
     return new Promise((resolve) => {
         const overlay = document.getElementById('modal-overlay');
         overlay.style.display = 'flex';
         document.getElementById('modal-title-text').innerText = title;
         const grid = document.getElementById('target-buttons-grid');
-        grid.innerHTML = `<p style="grid-column: span 3; color:white; font-size:1.1rem; margin:15px 0; line-height:1.5;">${message}</p>`;
+        grid.innerHTML = `<p style="grid-column: span 3; color:white; font-size:1.2rem; margin:15px 0;">${message}</p>`;
         const btn = document.createElement('button');
-        btn.innerText = "CONTINUE"; 
-        btn.className = "hit-btn";
-        btn.style.gridColumn = "span 3";
+        btn.innerText = "CONTINUE"; btn.className = "hit-btn"; btn.style.gridColumn = "span 3";
         btn.onclick = () => { overlay.style.display = 'none'; resolve(); };
         grid.appendChild(btn);
     });
@@ -66,17 +67,17 @@ const countInput = document.getElementById('player-count-input');
 const inputsContainer = document.getElementById('name-inputs-container');
 
 function refreshInputs() {
+    if (!inputsContainer) return;
     inputsContainer.innerHTML = '';
-    let count = Math.min(parseInt(countInput.value) || 2, 14);
-    for (let i = 0; i < count; i++) {
+    let val = parseInt(countInput.value) || 2;
+    val = Math.min(Math.max(val, 1), 14);
+    for (let i = 0; i < val; i++) {
         const input = document.createElement('input');
-        input.type = 'text'; input.placeholder = `Player ${i + 1}`;
-        input.className = 'player-name-field';
+        input.type = 'text'; input.placeholder = `Player ${i+1}`; input.className = 'player-name-field';
         inputsContainer.appendChild(input);
     }
 }
-countInput.addEventListener('change', refreshInputs);
-refreshInputs();
+if(countInput) countInput.addEventListener('input', refreshInputs);
 
 document.getElementById('start-game-btn').onclick = () => {
     const fields = document.querySelectorAll('.player-name-field');
@@ -90,39 +91,30 @@ document.getElementById('start-game-btn').onclick = () => {
     renderUI();
 };
 
-// --- GAMEPLAY & TURN LOGIC ---
+// --- GAMEPLAY ---
 async function handleHit() {
     toggleControls(false);
     let p = players[currentPlayerIndex];
-    if (p.status !== 'active') { toggleControls(true); return; }
-
     if (deck.length === 0) deck = createDeck();
     let card = deck.pop();
     log(`${p.name} drew ${card.label}`);
     
     await processCard(p, card);
     
-    // Logic to prevent skipping: Only move turn if still active, otherwise wait for status display
-    if (p.status !== 'active') {
-        setTimeout(nextTurn, 1000);
-    } else {
-        nextTurn();
-    }
+    if (p.status !== 'active') setTimeout(nextTurn, 1000);
+    else nextTurn();
     toggleControls(true);
 }
 
 async function processCard(player, card) {
     if (player.status !== 'active') return;
-    
     if (card.val === 'FREEZE' || card.val === 'FLIP 3') {
         const target = await openTargetModal(card);
         target.roundHand.push(card);
         if (card.val === 'FREEZE') {
-            log(`${target.name} frozen!`);
             target.status = 'stayed';
             target.totalScore += getRoundTotal(target);
         } else {
-            log(`${target.name} must Flip 3!`);
             await executeFlip3(target);
         }
     } else {
@@ -144,14 +136,12 @@ async function applySimpleCard(player, card) {
         
         if (isDup) {
             if (player.hasSecondChance) {
-                // POPUP NOTIFYING OF DUPLICATE
-                await showNoticeModal("🛡️ SHIELD USED!", `${player.name} drew a duplicate [ ${card.val} ]. The shield saved them!`);
+                await showNoticeModal("🛡️ SHIELD USED!", `${player.name} drew a duplicate [ ${card.val} ]. The card was discarded!`);
                 player.hasSecondChance = false;
-                const chanceIdx = player.roundHand.findIndex(c => c.label === '2nd CHANCE');
-                if (chanceIdx > -1) player.roundHand.splice(chanceIdx, 1);
-                player.roundHand.push(card);
+                const cIdx = player.roundHand.findIndex(c => c.label === '2nd CHANCE');
+                if (cIdx > -1) player.roundHand.splice(cIdx, 1);
+                // NOTE: We do NOT push the duplicate card into the hand.
             } else {
-                log(`${player.name} Busted on ${card.val}!`);
                 player.status = 'busted';
                 player.roundHand.push(card);
             }
@@ -159,12 +149,13 @@ async function applySimpleCard(player, card) {
             player.roundHand.push(card);
         }
     }
+    checkFlip7(player);
+}
 
-    const uniqueNums = new Set(player.roundHand.filter(c => c.type === 'number').map(c => c.val));
-    if (uniqueNums.size === 7) {
-        log("FLIP 7 BONUS!");
-        player.status = 'stayed';
-        player.totalScore += (getRoundTotal(player) + 15);
+function checkFlip7(p) {
+    const unique = new Set(p.roundHand.filter(c => c.type === 'number').map(c => c.val));
+    if (unique.size === 7) {
+        log("FLIP 7!"); p.status = 'stayed'; p.totalScore += (getRoundTotal(p) + 15);
     }
 }
 
@@ -189,7 +180,6 @@ function getRoundTotal(p) {
     return (sum * mult) + add;
 }
 
-// Fixed Turn Progression
 function nextTurn() {
     const actives = players.filter(p => p.status === 'active');
     if (actives.length === 0) { setTimeout(resetRound, 1500); return; }
@@ -215,7 +205,6 @@ function resetRound() {
     players.forEach(p => { p.roundHand = []; p.status = 'active'; p.hasSecondChance = false; });
     currentPlayerIndex = 0;
     renderUI();
-    log("NEW ROUND STARTED");
 }
 
 function renderUI() {
@@ -230,7 +219,6 @@ function renderUI() {
     const container = document.getElementById('players-list-display');
     container.innerHTML = '';
     players.forEach((p, idx) => {
-        // NUMERICAL SORTING
         const sortedHand = [...p.roundHand].sort((a, b) => {
             if (a.type === 'number' && b.type === 'number') return a.val - b.val;
             if (a.type === 'number') return -1;
@@ -254,10 +242,8 @@ function toggleControls(en) {
 
 document.getElementById('hit-btn-main').onclick = handleHit;
 document.getElementById('stay-btn-main').onclick = () => {
-    let p = players[currentPlayerIndex]; 
-    log(`${p.name} stayed at ${getRoundTotal(p)}`);
-    p.status = 'stayed'; 
-    p.totalScore += getRoundTotal(p); 
-    renderUI();
-    setTimeout(nextTurn, 500);
+    let p = players[currentPlayerIndex]; p.status = 'stayed'; p.totalScore += getRoundTotal(p); 
+    renderUI(); setTimeout(nextTurn, 500);
 };
+
+refreshInputs(); // Initial call to show names on load
