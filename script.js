@@ -1,8 +1,5 @@
-/** * FLIP 7 - STRATEGIC VIEW VERSION
- * 1. Fixed: Modifiers don't cause busts.
- * 2. Feature: Auto-sorting hand.
- * 3. Feature: Second Chance Modal.
- * 4. QoL: Transparent overlay for strategic targeting.
+/** * FLIP 7 - FULL MASTER CODE
+ * Updates: Sorted Hands, Mod-Bust Fix, 2nd Chance Popup, Centered Win Screen, Round-End Win Check.
  */
 
 let deck = [];
@@ -10,7 +7,7 @@ let players = [];
 let currentPlayerIndex = 0;
 const WIN_SCORE = 200;
 
-// --- 1. THE SHUFFLE ENGINE ---
+// --- 1. ENGINE ---
 function shuffle(array) {
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -19,7 +16,6 @@ function shuffle(array) {
     return array;
 }
 
-// --- 2. DECK INITIALIZATION ---
 function createDeck() {
     let d = [];
     for (let n = 0; n <= 12; n++) {
@@ -29,18 +25,17 @@ function createDeck() {
     for (let i = 0; i < 3; i++) d.push({ type: 'action', val: 'FREEZE', label: 'FRZ' });
     for (let i = 0; i < 3; i++) d.push({ type: 'action', val: 'FLIP 3', label: 'FL3' });
     for (let i = 0; i < 3; i++) d.push({ type: 'action', val: 'CHANCE', label: '2nd' });
-    
     [2, 4, 6, 8, 10].forEach(v => d.push({ type: 'mod', val: v, mode: 'add', label: '+' + v }));
     d.push({ type: 'mod', val: 2, mode: 'mult', label: 'x2' });
-
     return shuffle(d);
 }
 
-// --- SETUP ---
+// --- 2. SETUP ---
 const countInput = document.getElementById('player-count-input');
 const inputsContainer = document.getElementById('name-inputs-container');
 
 function refreshInputs() {
+    if (!inputsContainer) return;
     inputsContainer.innerHTML = '';
     let count = parseInt(countInput.value) || 1;
     for (let i = 0; i < count; i++) {
@@ -65,13 +60,10 @@ document.getElementById('start-game-btn').onclick = () => {
     renderUI();
 };
 
-// --- GAMEPLAY CORE ---
+// --- 3. GAMEPLAY ---
 async function handleHit() {
     toggleControls(false);
-    if (deck.length === 0) {
-        log("Deck empty! Reshuffling...");
-        deck = createDeck(); 
-    }
+    if (deck.length === 0) deck = createDeck();
     let card = deck.pop();
     await processCard(players[currentPlayerIndex], card);
     nextTurn();
@@ -80,19 +72,17 @@ async function handleHit() {
 
 async function processCard(player, card) {
     if (player.status !== 'active') return;
+
     if (card.val === 'FREEZE' || card.val === 'FLIP 3') {
         const target = await openTargetModal(card);
         target.roundHand.push(card);
         if (card.val === 'FREEZE') {
             target.status = 'stayed';
             bankScore(target);
-            log(`${target.name} was FROZEN.`);
         } else {
-            log(`${target.name} must FLIP 3!`);
             await executeFlip3(target);
         }
-    } 
-    else {
+    } else {
         await applySimpleCard(player, card);
     }
     renderUI();
@@ -102,26 +92,21 @@ async function applySimpleCard(player, card) {
     if (player.status !== 'active') return;
 
     if (card.val === 'CHANCE') {
-        if (!player.hasSecondChance) {
-            player.hasSecondChance = true;
-            player.roundHand.push(card);
-        }
+        if (!player.hasSecondChance) { player.hasSecondChance = true; player.roundHand.push(card); }
     } else if (card.type === 'mod') {
         player.roundHand.push(card);
     } else if (card.type === 'number') {
-        // Correct duplicate check (numbers only)
+        // FIX: Only check duplicates against existing NUMBER cards
         let isDuplicate = card.val !== 0 && player.roundHand.some(c => c.type === 'number' && c.val === card.val);
         
         if (isDuplicate) {
             if (player.hasSecondChance) {
-                await showNoticeModal("🛡️ SECOND CHANCE!", `${player.name} drew a duplicate ${card.val}, but the Second Chance saved them!`);
+                await showNoticeModal("🛡️ SECOND CHANCE!", `${player.name} hit a duplicate ${card.val}. Shield saved them!`);
                 player.hasSecondChance = false;
                 player.roundHand = player.roundHand.filter(c => c.val !== 'CHANCE');
-                log(`🛡️ ${player.name} used 2nd Chance!`);
             } else {
                 player.status = 'busted';
                 player.roundHand.push(card);
-                log(`💥 ${player.name} BUSTED on ${card.val}!`);
             }
         } else {
             player.roundHand.push(card);
@@ -129,42 +114,34 @@ async function applySimpleCard(player, card) {
     }
 
     const uniqueNums = new Set(player.roundHand.filter(c => c.type === 'number').map(c => c.val));
-    if (uniqueNums.size === 7) {
-        player.status = 'stayed';
-        bankScore(player);
-        log(`🌟 ${player.name} hit FLIP 7!`);
-    }
+    if (uniqueNums.size === 7) { player.status = 'stayed'; bankScore(player); }
 }
 
 async function executeFlip3(target) {
     for (let i = 0; i < 3; i++) {
         if (target.status === 'active') {
-            await new Promise(r => setTimeout(r, 500)); 
+            await new Promise(r => setTimeout(r, 600));
             if (deck.length === 0) deck = createDeck();
-            let nextCard = deck.pop();
-            await processCard(target, nextCard);
+            await processCard(target, deck.pop());
             renderUI();
         }
     }
 }
 
-// --- MODALS ---
+// --- 4. MODALS ---
 function openTargetModal(card) {
     return new Promise((resolve) => {
-        // Show modal but with a clear background (via CSS)
-        document.getElementById('modal-overlay').style.display = 'flex';
+        const overlay = document.getElementById('modal-overlay');
+        overlay.style.display = 'flex';
         document.getElementById('modal-title-text').innerText = `Assign ${card.val}`;
         const grid = document.getElementById('target-buttons-grid');
         grid.innerHTML = '';
-        players.forEach((p) => {
+        players.forEach(p => {
             if (p.status === 'active') {
                 const btn = document.createElement('button');
                 btn.innerText = p.name;
                 btn.className = 'hit-btn';
-                btn.onclick = () => {
-                    document.getElementById('modal-overlay').style.display = 'none';
-                    resolve(p);
-                };
+                btn.onclick = () => { overlay.style.display = 'none'; resolve(p); };
                 grid.appendChild(btn);
             }
         });
@@ -173,69 +150,63 @@ function openTargetModal(card) {
 
 function showNoticeModal(title, message) {
     return new Promise((resolve) => {
-        document.getElementById('modal-overlay').style.display = 'flex';
+        const overlay = document.getElementById('modal-overlay');
+        overlay.style.display = 'flex';
         document.getElementById('modal-title-text').innerText = title;
         const grid = document.getElementById('target-buttons-grid');
-        grid.innerHTML = `<div style="color:white; text-align:center; padding: 20px; font-size: 1.1em;">${message}</div>`;
+        grid.innerHTML = `<p style="grid-column: span 2; color: white;">${message}</p>`;
         const btn = document.createElement('button');
-        btn.innerText = "CONTINUE";
-        btn.className = "hit-btn";
-        btn.onclick = () => {
-            document.getElementById('modal-overlay').style.display = 'none';
-            resolve();
-        };
+        btn.innerText = "OK"; btn.className = "hit-btn";
+        btn.style.gridColumn = "span 2";
+        btn.onclick = () => { overlay.style.display = 'none'; resolve(); };
         grid.appendChild(btn);
     });
 }
 
-// --- UTILS ---
-function toggleControls(enable) {
-    document.getElementById('hit-btn-main').disabled = !enable;
-    document.getElementById('stay-btn-main').disabled = !enable;
-    document.getElementById('game-controls').style.opacity = enable ? "1" : "0.5";
+// --- 5. SCORING & ROUND END ---
+function bankScore(p) {
+    p.totalScore += getRoundTotal(p);
+    // Logic for win check moved to resetRound()
 }
 
 function getRoundTotal(player) {
     if (player.status === 'busted') return 0;
-    let baseSum = 0, multiplier = 1, additives = 0, uniqueNums = new Set();
+    let sum = 0, mult = 1, add = 0, unique = new Set();
     player.roundHand.forEach(c => {
-        if (c.type === 'number') { 
-            baseSum += c.val; 
-            if (c.val > 0) uniqueNums.add(c.val); 
-        }
-        else if (c.type === 'mod') { 
-            if (c.mode === 'mult') multiplier = c.val; else additives += c.val; 
-        }
+        if (c.type === 'number') { sum += c.val; if (c.val > 0) unique.add(c.val); }
+        else if (c.type === 'mod') { if (c.mode === 'mult') mult = c.val; else add += c.val; }
     });
-    let total = (baseSum * multiplier) + additives;
-    if (uniqueNums.size === 7) total += 15;
+    let total = (sum * mult) + add;
+    if (unique.size === 7) total += 15;
     return total;
 }
 
 function nextTurn() {
     const actives = players.filter(p => p.status === 'active');
-    if (actives.length === 0) { setTimeout(resetRound, 2000); return; }
+    if (actives.length === 0) { 
+        setTimeout(resetRound, 1500); 
+        return; 
+    }
     do { currentPlayerIndex = (currentPlayerIndex + 1) % players.length; } 
     while (players[currentPlayerIndex].status !== 'active');
     renderUI();
 }
 
-function stayCurrentPlayer() {
-    let p = players[currentPlayerIndex];
-    p.status = 'stayed';
-    bankScore(p);
-    nextTurn();
-}
-
-function bankScore(p) {
-    p.totalScore += getRoundTotal(p);
-    if (p.totalScore >= WIN_SCORE) {
-        document.getElementById('winner-display-name').innerText = `${p.name} WINS!`;
-        document.getElementById('win-screen').style.display = 'flex';
-    }
-}
-
 function resetRound() {
+    // WIN CHECK: See if anyone is over WIN_SCORE at the end of the round
+    const winners = players.filter(p => p.totalScore >= WIN_SCORE);
+
+    if (winners.length > 0) {
+        // Find the highest score among those who passed the threshold
+        winners.sort((a, b) => b.totalScore - a.totalScore);
+        const topDog = winners[0];
+        
+        document.getElementById('winner-display-name').innerText = `${topDog.name} Wins!`;
+        document.getElementById('win-screen').style.display = 'flex';
+        return;
+    }
+
+    // Otherwise, clear and start next round
     players.forEach(p => { p.roundHand = []; p.status = 'active'; p.hasSecondChance = false; });
     currentPlayerIndex = 0;
     renderUI();
@@ -249,13 +220,11 @@ function renderUI() {
 
     const container = document.getElementById('players-list-display');
     container.innerHTML = '';
-    
     players.forEach((p, idx) => {
-        const sortedHand = [...p.roundHand].sort((a, b) => {
+        // Hand Sorting: 0-12 first, then others
+        const sortedHand = [...p.roundHand].sort((a,b) => {
             if (a.type === 'number' && b.type === 'number') return a.val - b.val;
-            if (a.type === 'number' && b.type !== 'number') return -1;
-            if (a.type !== 'number' && b.type === 'number') return 1;
-            return 0;
+            return (a.type === 'number') ? -1 : 1;
         });
 
         const row = document.createElement('div');
@@ -267,10 +236,18 @@ function renderUI() {
         `;
         container.appendChild(row);
     });
-    document.getElementById('turn-indicator').innerText = `${players[currentPlayerIndex].name}'s Turn`;
 }
 
-function log(msg) { document.getElementById('game-log-box').innerText = msg; }
-
+// --- CONTROLS ---
 document.getElementById('hit-btn-main').onclick = handleHit;
-document.getElementById('stay-btn-main').onclick = stayCurrentPlayer;
+document.getElementById('stay-btn-main').onclick = () => { 
+    let p = players[currentPlayerIndex];
+    p.status = 'stayed'; 
+    bankScore(p); 
+    nextTurn(); 
+};
+
+function toggleControls(enable) {
+    document.getElementById('hit-btn-main').disabled = !enable;
+    document.getElementById('stay-btn-main').disabled = !enable;
+}
