@@ -9,45 +9,55 @@
 body { background: var(--bg); color: white; font-family: sans-serif; margin: 0; overflow-x: hidden; }
 .screen { padding: 20px; }
 
-/* --- SETUP & HEADER --- */
+/* --- SETUP --- */
 .setup-box { max-width: 600px; margin: 40px auto; background: var(--card); padding: 25px; border-radius: 12px; text-align: center; border: 1px solid #333; }
+#name-inputs-container { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0; }
+#name-inputs-container input { padding: 10px; border-radius: 4px; border: none; background: #333; color: white; }
+
+/* --- HEADER / SCOREBOARD --- */
 #scoreboard { display: flex; background: #000; padding: 15px; border-bottom: 3px solid var(--hit); position: sticky; top: 0; z-index: 10; justify-content: space-between; align-items: center; }
 #leaderboard-display { display: flex; gap: 10px; overflow-x: auto; align-items: center; }
-.leader-tag { background: #333; padding: 5px 12px; border-radius: 15px; font-size: 0.9rem; white-space: nowrap; border: 1px solid #555; transition: all 0.3s; }
-
-/* --- MATCH POINT & FINAL DASH --- */
-.match-point { border-color: var(--gold) !important; background: rgba(241, 196, 15, 0.1) !important; animation: matchPointPulse 2s infinite; }
-@keyframes matchPointPulse {
-    0%, 100% { box-shadow: 0 0 10px rgba(241, 196, 15, 0.2); }
-    50% { box-shadow: 0 0 25px rgba(241, 196, 15, 0.6); }
-}
-.match-point-badge { background: var(--gold); color: black; font-size: 0.65rem; font-weight: bold; padding: 2px 5px; border-radius: 3px; text-transform: uppercase; margin-top: 5px; display: inline-block; }
-
-#final-dash-banner {
-    display: none; background: #c0392b; color: white; text-align: center; 
-    padding: 8px; font-weight: bold; font-size: 1rem; letter-spacing: 1px;
-    border-bottom: 2px solid #e74c3c;
-}
+.leader-tag { background: #333; padding: 5px 12px; border-radius: 15px; font-size: 0.9rem; white-space: nowrap; border: 1px solid var(--gold); }
 
 /* --- PLAYERS --- */
 .player-row { display: flex; align-items: center; background: var(--card); margin: 8px 0; padding: 12px; border-radius: 8px; border: 2px solid transparent; transition: all 0.2s; }
-.player-row.active { border-color: var(--hit); background: #252525; }
+.player-row.active { border-color: var(--hit); background: #252525; box-shadow: 0 0 10px rgba(46, 204, 113, 0.2); }
 .player-info { width: 140px; flex-shrink: 0; }
 .hand { flex-grow: 1; display: flex; gap: 8px; overflow-x: auto; padding: 0 15px; }
 .round-total-box { width: 100px; text-align: right; border-left: 1px solid #444; padding-left: 10px; }
 .round-score-val { color: var(--gold); font-size: 1.4rem; font-weight: bold; }
 
 /* --- CARDS --- */
-.card { min-width: 45px; height: 60px; background: white; color: black; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 2px 2px 5px rgba(0,0,0,0.5); }
+.card { min-width: 45px; height: 60px; background: white; color: black; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 2px 2px 5px rgba(0,0,0,0.5); border: 1px solid #ccc; }
 .card.action { background: var(--gold); color: black; }
 .card.mod { background: #9b59b6; color: white; }
 .card.number { background: #ecf0f1; }
 
-/* --- MODALS --- */
-#modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.3); display: none; align-items: center; justify-content: center; z-index: 100; }
-.modal-content { background: var(--card); padding: 30px; border-radius: 15px; border: 3px solid var(--gold); max-width: 400px; width: 90%; text-align: center; box-shadow: 0 0 50px rgba(0,0,0,0.8); }
+/* --- CONTROLS --- */
+#game-controls { text-align: center; padding: 20px; }
+.btn-group button { padding: 15px 45px; font-size: 1.2rem; margin: 0 10px; border: none; border-radius: 8px; cursor: pointer; color: white; font-weight: bold; }
+.hit-btn { background: var(--hit); }
+.stay-btn { background: var(--stay); }
+button:disabled { filter: grayscale(1); opacity: 0.5; cursor: not-allowed; }
+
+/* --- MODALS (TARGETING & 2nd CHANCE) --- */
+#modal-overlay { 
+    position: fixed; inset: 0; 
+    background: rgba(0, 0, 0, 0.3); /* Transparent background for strategy */
+    display: none; align-items: center; justify-content: center; z-index: 100; 
+}
+.modal-content { 
+    background: var(--card); padding: 30px; border-radius: 15px; border: 3px solid var(--gold); 
+    max-width: 400px; width: 90%; text-align: center; box-shadow: 0 0 50px rgba(0,0,0,0.8);
+}
 #target-buttons-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
 
-/* --- WIN SCREEN --- */
-#win-screen { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.95); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 200; text-align: center; }
-#win-screen h1 { font-size: 3.5rem; color: var(--gold); margin: 0; }
+/* --- WIN SCREEN (CENTERED) --- */
+#win-screen {
+    position: fixed; inset: 0;
+    background: rgba(0, 0, 0, 0.9);
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 200; text-align: center;
+}
+#win-screen h1 { font-size: 3.5rem; color: var(--gold); text-shadow: 0 0 20px rgba(241, 196, 15, 0.5); margin: 0; }
+#winner-display-name { font-size: 2rem; margin-bottom: 20px; }
