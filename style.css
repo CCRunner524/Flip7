@@ -4,60 +4,188 @@
     --hit: #2ecc71; 
     --stay: #3498db; 
     --gold: #f1c40f;
+    --danger: #e74c3c;
 }
 
-body { background: var(--bg); color: white; font-family: sans-serif; margin: 0; overflow-x: hidden; }
-.screen { padding: 20px; }
+body { 
+    background: var(--bg); 
+    color: white; 
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+    margin: 0; 
+    overflow-x: hidden; 
+}
 
-/* --- SETUP --- */
-.setup-box { max-width: 600px; margin: 40px auto; background: var(--card); padding: 25px; border-radius: 12px; text-align: center; border: 1px solid #333; }
-#name-inputs-container { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0; }
-#name-inputs-container input { padding: 10px; border-radius: 4px; border: none; background: #333; color: white; }
+/* --- HEADER & LARGE LEADERBOARD --- */
+#scoreboard { 
+    display: flex; 
+    background: #000; 
+    padding: 20px 30px; 
+    border-bottom: 4px solid var(--hit); 
+    position: sticky; 
+    top: 0; 
+    z-index: 10; 
+    justify-content: space-between; 
+    align-items: center;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+}
 
-/* --- HEADER / SCOREBOARD --- */
-#scoreboard { display: flex; background: #000; padding: 15px; border-bottom: 3px solid var(--hit); position: sticky; top: 0; z-index: 10; justify-content: space-between; align-items: center; }
-#leaderboard-display { display: flex; gap: 10px; overflow-x: auto; align-items: center; }
-.leader-tag { background: #333; padding: 5px 12px; border-radius: 15px; font-size: 0.9rem; white-space: nowrap; border: 1px solid var(--gold); }
+#leaderboard-display { 
+    display: flex; 
+    gap: 15px; 
+    overflow-x: auto; 
+    align-items: center; 
+    flex-grow: 1;
+}
 
-/* --- PLAYERS --- */
-.player-row { display: flex; align-items: center; background: var(--card); margin: 8px 0; padding: 12px; border-radius: 8px; border: 2px solid transparent; transition: all 0.2s; }
-.player-row.active { border-color: var(--hit); background: #252525; box-shadow: 0 0 10px rgba(46, 204, 113, 0.2); }
-.player-info { width: 140px; flex-shrink: 0; }
-.hand { flex-grow: 1; display: flex; gap: 8px; overflow-x: auto; padding: 0 15px; }
-.round-total-box { width: 100px; text-align: right; border-left: 1px solid #444; padding-left: 10px; }
-.round-score-val { color: var(--gold); font-size: 1.4rem; font-weight: bold; }
+.leader-tag { 
+    background: #222; 
+    padding: 12px 24px; 
+    border-radius: 12px; 
+    font-size: 1.3rem; /* Significantly larger for readability */
+    font-weight: 800;
+    white-space: nowrap; 
+    border: 2px solid #444; 
+    transition: all 0.3s ease;
+    color: #eee;
+}
+
+.leader-tag.match-point {
+    border-color: var(--gold);
+    color: var(--gold);
+    background: rgba(241, 196, 15, 0.15);
+    transform: scale(1.08); /* Pops out slightly */
+    box-shadow: 0 0 15px rgba(241, 196, 15, 0.3);
+}
+
+#deck-info {
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin-left: 20px;
+    color: var(--stay);
+    text-align: center;
+    min-width: 100px;
+}
+
+/* --- FINAL DASH BANNER --- */
+#final-dash-banner {
+    display: none; 
+    background: var(--danger); 
+    color: white; 
+    text-align: center; 
+    padding: 10px; 
+    font-weight: bold; 
+    font-size: 1.2rem; 
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border-bottom: 2px solid #b03a2e;
+}
+
+/* --- SETUP SCREEN --- */
+.setup-box { 
+    max-width: 600px; 
+    margin: 60px auto; 
+    background: var(--card); 
+    padding: 40px; 
+    border-radius: 16px; 
+    text-align: center; 
+    border: 1px solid #333;
+}
+
+#name-inputs-container { 
+    display: grid; 
+    grid-template-columns: 1fr 1fr; 
+    gap: 15px; 
+    margin: 25px 0; 
+}
+
+#name-inputs-container input { 
+    padding: 12px; 
+    border-radius: 6px; 
+    border: 1px solid #444; 
+    background: #111; 
+    color: white; 
+    font-size: 1rem;
+}
+
+/* --- PLAYER ROWS --- */
+.player-row { 
+    display: flex; 
+    align-items: center; 
+    background: var(--card); 
+    margin: 12px 20px; 
+    padding: 15px; 
+    border-radius: 12px; 
+    border: 3px solid transparent; 
+    transition: all 0.2s ease; 
+}
+
+.player-row.active { 
+    border-color: var(--hit); 
+    background: #252525; 
+    box-shadow: 0 0 20px rgba(46, 204, 113, 0.15);
+}
+
+.player-row.match-point {
+    border-color: var(--gold);
+    background: rgba(241, 196, 15, 0.05);
+    animation: matchPointPulse 2s infinite;
+}
+
+@keyframes matchPointPulse {
+    0%, 100% { box-shadow: 0 0 10px rgba(241, 196, 15, 0.1); }
+    50% { box-shadow: 0 0 30px rgba(241, 196, 15, 0.4); }
+}
+
+.player-info { width: 160px; flex-shrink: 0; }
+.hand { flex-grow: 1; display: flex; gap: 10px; overflow-x: auto; padding: 5px 15px; }
+.round-total-box { width: 120px; text-align: right; border-left: 2px solid #333; padding-left: 15px; }
+.round-score-val { color: var(--gold); font-size: 1.8rem; font-weight: 900; }
+.match-point-badge { background: var(--gold); color: black; font-size: 0.7rem; font-weight: bold; padding: 3px 7px; border-radius: 4px; margin-top: 5px; display: inline-block; }
 
 /* --- CARDS --- */
-.card { min-width: 45px; height: 60px; background: white; color: black; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 2px 2px 5px rgba(0,0,0,0.5); border: 1px solid #ccc; }
-.card.action { background: var(--gold); color: black; }
+.card { 
+    min-width: 50px; 
+    height: 70px; 
+    background: white; 
+    color: black; 
+    border-radius: 6px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    font-weight: 900; 
+    font-size: 1.2rem;
+    box-shadow: 3px 3px 8px rgba(0,0,0,0.4); 
+}
+.card.action { background: var(--gold); }
 .card.mod { background: #9b59b6; color: white; }
 .card.number { background: #ecf0f1; }
 
-/* --- CONTROLS --- */
-#game-controls { text-align: center; padding: 20px; }
-.btn-group button { padding: 15px 45px; font-size: 1.2rem; margin: 0 10px; border: none; border-radius: 8px; cursor: pointer; color: white; font-weight: bold; }
-.hit-btn { background: var(--hit); }
-.stay-btn { background: var(--stay); }
-button:disabled { filter: grayscale(1); opacity: 0.5; cursor: not-allowed; }
-
-/* --- MODALS (TARGETING & 2nd CHANCE) --- */
+/* --- STRATEGIC MODAL (TRANSPARENT BACKGROUND) --- */
 #modal-overlay { 
     position: fixed; inset: 0; 
-    background: rgba(0, 0, 0, 0.3); /* Transparent background for strategy */
+    background: rgba(0, 0, 0, 0.25); /* Clear enough to see player cards */
     display: none; align-items: center; justify-content: center; z-index: 100; 
 }
 .modal-content { 
-    background: var(--card); padding: 30px; border-radius: 15px; border: 3px solid var(--gold); 
-    max-width: 400px; width: 90%; text-align: center; box-shadow: 0 0 50px rgba(0,0,0,0.8);
+    background: #1a1a1a; padding: 35px; border-radius: 20px; border: 4px solid var(--gold); 
+    max-width: 450px; width: 90%; text-align: center; box-shadow: 0 0 60px rgba(0,0,0,0.9);
 }
-#target-buttons-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+#target-buttons-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 25px; }
+
+/* --- CONTROLS --- */
+#game-controls { text-align: center; padding: 30px; background: rgba(0,0,0,0.2); }
+.btn-group button { padding: 18px 50px; font-size: 1.3rem; margin: 0 15px; border: none; border-radius: 10px; cursor: pointer; color: white; font-weight: bold; transition: 0.2s; }
+.hit-btn { background: var(--hit); box-shadow: 0 4px 0 #27ae60; }
+.stay-btn { background: var(--stay); box-shadow: 0 4px 0 #2980b9; }
+.hit-btn:active, .stay-btn:active { transform: translateY(4px); box-shadow: none; }
+button:disabled { filter: grayscale(1); opacity: 0.4; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
 
 /* --- WIN SCREEN (CENTERED) --- */
-#win-screen {
-    position: fixed; inset: 0;
-    background: rgba(0, 0, 0, 0.9);
-    display: none; flex-direction: column; align-items: center; justify-content: center;
-    z-index: 200; text-align: center;
+#win-screen { 
+    position: fixed; inset: 0; 
+    background: rgba(0, 0, 0, 0.95); 
+    display: none; flex-direction: column; align-items: center; justify-content: center; 
+    z-index: 200; text-align: center; 
 }
-#win-screen h1 { font-size: 3.5rem; color: var(--gold); text-shadow: 0 0 20px rgba(241, 196, 15, 0.5); margin: 0; }
-#winner-display-name { font-size: 2rem; margin-bottom: 20px; }
+#win-screen h1 { font-size: 4.5rem; color: var(--gold); text-shadow: 0 0 30px rgba(241, 196, 15, 0.5); margin: 0; }
+#winner-display-name { font-size: 2.5rem; color: white; margin-bottom: 30px; }
