@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FLIP 7</title>
+    <title>FLIP 7 - Strategy Edition</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -11,8 +11,8 @@
     <div id="setup-screen" class="screen">
         <div class="setup-box">
             <h1>FLIP 7</h1>
-            <p>Number of Players:</p>
-            <input type="number" id="player-count-input" value="2" min="1" max="8">
+            <p>Number of Players (Up to 14):</p>
+            <input type="number" id="player-count-input" value="2" min="1" max="14">
             <div id="name-inputs-container"></div>
             <button id="start-game-btn" class="hit-btn">START GAME</button>
         </div>
@@ -26,24 +26,25 @@
 
         <div id="final-dash-banner">🔥 FINAL DASH: SOMEONE HIT 200! 🔥</div>
 
-        <div id="players-list-display"></div>
-
-        <div id="status-area">
-            <div id="game-log-box">ROUND STARTED</div>
-            <h2 id="turn-indicator">Player's Turn</h2>
-        </div>
-
-        <div id="game-controls">
-            <div class="btn-group">
-                <button id="hit-btn-main" class="hit-btn">HIT</button>
-                <button id="stay-btn-main" class="stay-btn">STAY</button>
+        <div id="game-header-controls">
+            <div id="status-area">
+                <div id="game-log-box">ROUND STARTED</div>
+                <h2 id="turn-indicator">Player's Turn</h2>
+            </div>
+            <div id="game-controls">
+                <div class="btn-group">
+                    <button id="hit-btn-main" class="hit-btn">HIT</button>
+                    <button id="stay-btn-main" class="stay-btn">STAY</button>
+                </div>
             </div>
         </div>
+
+        <div id="players-list-display"></div>
     </div>
 
     <div id="modal-overlay">
         <div class="modal-content">
-            <h2 id="modal-title-text">Assign Card</h2> 
+            <h2 id="modal-title-text">Assign Card</h2>
             <div id="target-buttons-grid"></div>
         </div>
     </div>
