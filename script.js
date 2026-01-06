@@ -25,9 +25,15 @@ function createDeck() {
     return shuffle(d);
 }
 
+// Fixed Log Function
 function log(msg) {
     const lb = document.getElementById('game-log-box');
-    if(lb) lb.innerText = msg;
+    if (lb) {
+        lb.innerText = msg;
+        // Visual flash to show update
+        lb.style.color = "#fff";
+        setTimeout(() => { lb.style.color = "var(--hit)"; }, 150);
+    }
 }
 
 const countInput = document.getElementById('player-count-input');
@@ -55,31 +61,45 @@ document.getElementById('start-game-btn').onclick = () => {
     deck = createDeck();
     document.getElementById('setup-screen').style.display = 'none';
     document.getElementById('game-screen').style.display = 'block';
-    log("GAME STARTED!");
     renderUI();
+    log("GAME STARTED - " + players[0].name + " GOES FIRST");
 };
 
+// FIXED: Handle Hit now logs BEFORE moving to next turn
 async function handleHit() {
     toggleControls(false);
     if (deck.length === 0) deck = createDeck();
+    
+    let activePlayer = players[currentPlayerIndex];
     let card = deck.pop();
-    log(`${players[currentPlayerIndex].name} drew ${card.label}`);
-    await processCard(players[currentPlayerIndex], card);
-    nextTurn();
+    
+    log(activePlayer.name + " DREW " + card.label);
+    
+    await processCard(activePlayer, card);
+    
+    // Only move turn if they didn't bust or freeze
+    if (activePlayer.status === 'active') {
+        nextTurn();
+    } else {
+        // If they busted/stayed, wait a moment so players see the result, then next turn
+        setTimeout(nextTurn, 1000);
+    }
+    
     toggleControls(true);
 }
 
 async function processCard(player, card) {
     if (player.status !== 'active') return;
+    
     if (card.val === 'FREEZE' || card.val === 'FLIP 3') {
         const target = await openTargetModal(card);
         target.roundHand.push(card);
         if (card.val === 'FREEZE') {
-            log(`${target.name} IS FROZEN!`);
+            log(target.name + " WAS FROZEN!");
             target.status = 'stayed';
             bankScore(target);
         } else {
-            log(`${target.name} MUST FLIP 3!`);
+            log(target.name + " MUST FLIP 3!");
             await executeFlip3(target);
         }
     } else {
@@ -90,6 +110,7 @@ async function processCard(player, card) {
 
 async function applySimpleCard(player, card) {
     if (player.status !== 'active') return;
+    
     if (card.val === 'CHANCE') {
         player.hasSecondChance = true;
         player.roundHand.push(card);
@@ -99,11 +120,11 @@ async function applySimpleCard(player, card) {
         let isDuplicate = card.val !== 0 && player.roundHand.some(c => c.type === 'number' && c.val === card.val);
         if (isDuplicate) {
             if (player.hasSecondChance) {
-                await showNoticeModal("🛡️ SECOND CHANCE!", `${player.name} hit a duplicate ${card.val}. Shield used!`);
+                await showNoticeModal("🛡️ SECOND CHANCE!", player.name + " used their shield!");
                 player.hasSecondChance = false;
                 player.roundHand = player.roundHand.filter(c => c.val !== 'CHANCE');
             } else {
-                log(`${player.name} BUSTED!`);
+                log(player.name + " BUSTED ON A " + card.val + "!");
                 player.status = 'busted';
                 player.roundHand.push(card);
             }
@@ -111,17 +132,19 @@ async function applySimpleCard(player, card) {
             player.roundHand.push(card);
         }
     }
+    
     const uniqueNums = new Set(player.roundHand.filter(c => c.type === 'number').map(c => c.val));
     if (uniqueNums.size === 7) { 
-        log("FLIP 7!");
-        player.status = 'stayed'; bankScore(player); 
+        log(player.name + " GOT ALL 7!");
+        player.status = 'stayed'; 
+        bankScore(player); 
     }
 }
 
 async function executeFlip3(target) {
     for (let i = 0; i < 3; i++) {
         if (target.status === 'active') {
-            await new Promise(r => setTimeout(r, 600));
+            await new Promise(r => setTimeout(r, 800));
             if (deck.length === 0) deck = createDeck();
             await processCard(target, deck.pop());
             renderUI();
@@ -179,9 +202,19 @@ function getRoundTotal(player) {
 
 function nextTurn() {
     const actives = players.filter(p => p.status === 'active');
-    if (actives.length === 0) { setTimeout(resetRound, 1500); return; }
-    do { currentPlayerIndex = (currentPlayerIndex + 1) % players.length; } 
-    while (players[currentPlayerIndex].status !== 'active');
+    if (actives.length === 0) { 
+        log("ROUND OVER - CALCULATING...");
+        setTimeout(resetRound, 1500); 
+        return; 
+    }
+    
+    // Cycle to next active player
+    let attempts = 0;
+    do { 
+        currentPlayerIndex = (currentPlayerIndex + 1) % players.length; 
+        attempts++;
+    } while (players[currentPlayerIndex].status !== 'active' && attempts < players.length);
+    
     renderUI();
 }
 
@@ -193,16 +226,21 @@ function resetRound() {
         document.getElementById('win-screen').style.display = 'flex';
         return;
     }
-    players.forEach(p => { p.roundHand = []; p.status = 'active'; p.hasSecondChance = false; });
+    
+    players.forEach(p => { 
+        p.roundHand = []; 
+        p.status = 'active'; 
+        p.hasSecondChance = false; 
+    });
     currentPlayerIndex = 0;
-    log("NEW ROUND STARTED");
+    log("NEW ROUND BEGUN!");
     renderUI();
 }
 
 function renderUI() {
     const someoneHit200 = players.some(p => p.totalScore >= WIN_SCORE);
     document.getElementById('final-dash-banner').style.display = someoneHit200 ? 'block' : 'none';
-    document.getElementById('turn-indicator').innerText = `${players[currentPlayerIndex].name}'s Turn`;
+    document.getElementById('turn-indicator').innerText = players[currentPlayerIndex].name + "'s Turn";
     document.getElementById('deck-count-display').innerText = deck.length;
     
     const lb = document.getElementById('leaderboard-display');
@@ -211,9 +249,14 @@ function renderUI() {
 
     const container = document.getElementById('players-list-display');
     container.innerHTML = '';
+    
     players.forEach((p, idx) => {
         const isMatchPoint = p.totalScore >= 180;
-        const sortedHand = [...p.roundHand].sort((a,b) => (a.type === 'number' && b.type === 'number') ? a.val - b.val : (a.type === 'number' ? -1 : 1));
+        const sortedHand = [...p.roundHand].sort((a,b) => {
+            if (a.type === 'number' && b.type === 'number') return a.val - b.val;
+            return (a.type === 'number' ? -1 : 1);
+        });
+        
         const row = document.createElement('div');
         row.className = `player-row ${idx === currentPlayerIndex ? 'active' : ''} ${isMatchPoint ? 'match-point' : ''}`;
         row.innerHTML = `
@@ -236,6 +279,8 @@ function toggleControls(enable) {
 document.getElementById('hit-btn-main').onclick = handleHit;
 document.getElementById('stay-btn-main').onclick = () => { 
     let p = players[currentPlayerIndex];
-    log(`${p.name} stayed.`);
-    p.status = 'stayed'; bankScore(p); nextTurn(); 
+    log(p.name + " STAYED AT " + getRoundTotal(p));
+    p.status = 'stayed'; 
+    bankScore(p); 
+    nextTurn(); 
 };
