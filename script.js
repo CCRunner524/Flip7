@@ -17,9 +17,9 @@ function createDeck() {
         let count = (n === 0 || n === 1) ? 1 : n;
         for (let i = 0; i < count; i++) d.push({ type: 'number', val: n, label: n.toString() });
     }
-    for (let i = 0; i < 3; i++) d.push({ type: 'action', val: 'FREEZE', label: 'FRZ' });
-    for (let i = 0; i < 3; i++) d.push({ type: 'action', val: 'FLIP 3', label: 'FL3' });
-    for (let i = 0; i < 3; i++) d.push({ type: 'action', val: 'CHANCE', label: '2nd' });
+    for (let i = 0; i < 3; i++) d.push({ type: 'action', val: 'FREEZE', label: 'FREEZE' });
+    for (let i = 0; i < 3; i++) d.push({ type: 'action', val: 'FLIP 3', label: 'FLIP 3' });
+    for (let i = 0; i < 3; i++) d.push({ type: 'action', val: 'CHANCE', label: '2nd CHANCE' });
     [2, 4, 6, 8, 10].forEach(v => d.push({ type: 'mod', val: v, mode: 'add', label: '+' + v }));
     d.push({ type: 'mod', val: 2, mode: 'mult', label: 'x2' });
     return shuffle(d);
@@ -27,7 +27,6 @@ function createDeck() {
 
 function log(msg) { document.getElementById('game-log-box').innerText = msg; }
 
-// --- SETUP ---
 const countInput = document.getElementById('player-count-input');
 const inputsContainer = document.getElementById('name-inputs-container');
 
@@ -56,7 +55,6 @@ document.getElementById('start-game-btn').onclick = () => {
     renderUI();
 };
 
-// --- GAMEPLAY ---
 async function handleHit() {
     toggleControls(false);
     let p = players[currentPlayerIndex];
@@ -65,25 +63,21 @@ async function handleHit() {
     log(`${p.name} drew ${card.label}`);
     await processCard(p, card);
     
-    if (p.status !== 'active') {
-        setTimeout(nextTurn, 1200);
-    } else {
-        nextTurn();
-    }
+    if (p.status !== 'active') setTimeout(nextTurn, 1000);
+    else nextTurn();
     toggleControls(true);
 }
 
 async function processCard(player, card) {
     if (player.status !== 'active') return;
     if (card.val === 'FREEZE' || card.val === 'FLIP 3') {
-        const target = await openTargetModal(card);
+        // Modal title updated here
+        const target = await openTargetModal(card); 
         target.roundHand.push(card);
         if (card.val === 'FREEZE') {
-            log(`${target.name} frozen!`);
             target.status = 'stayed';
-            bankScore(target);
+            player.totalScore += getRoundTotal(target); // Simplified bank
         } else {
-            log(`${target.name} Flip 3!`);
             await executeFlip3(target);
         }
     } else {
@@ -99,11 +93,9 @@ async function applySimpleCard(player, card) {
         let isDup = card.val !== 0 && player.roundHand.some(c => c.type === 'number' && c.val === card.val);
         if (isDup) {
             if (player.hasSecondChance) {
-                log("Shield Used!");
                 player.hasSecondChance = false;
-                player.roundHand = player.roundHand.filter(c => c.val !== 'CHANCE');
+                player.roundHand = player.roundHand.filter(c => c.label !== '2nd CHANCE');
             } else {
-                log("Bust!");
                 player.status = 'busted';
                 player.roundHand.push(card);
             }
@@ -111,15 +103,12 @@ async function applySimpleCard(player, card) {
             player.roundHand.push(card);
         }
     }
-    if (new Set(player.roundHand.filter(c => c.type === 'number').map(c => c.val)).size === 7) {
-        log("Flip 7!"); player.status = 'stayed'; bankScore(player);
-    }
 }
 
 async function executeFlip3(target) {
     for (let i = 0; i < 3; i++) {
         if (target.status === 'active') {
-            await new Promise(r => setTimeout(r, 700));
+            await new Promise(r => setTimeout(r, 600));
             if (deck.length === 0) deck = createDeck();
             await processCard(target, deck.pop());
             renderUI();
@@ -127,19 +116,14 @@ async function executeFlip3(target) {
     }
 }
 
-// --- UI & TURNS ---
-function bankScore(p) { p.totalScore += getRoundTotal(p); }
-
 function getRoundTotal(p) {
     if (p.status === 'busted') return 0;
-    let sum = 0, mult = 1, add = 0, unique = new Set();
+    let sum = 0, mult = 1, add = 0;
     p.roundHand.forEach(c => {
-        if (c.type === 'number') { sum += c.val; if (c.val > 0) unique.add(c.val); }
+        if (c.type === 'number') sum += c.val;
         else if (c.type === 'mod') { if (c.mode === 'mult') mult = c.val; else add += c.val; }
     });
-    let total = (sum * mult) + add;
-    if (unique.size === 7) total += 15;
-    return total;
+    return (sum * mult) + add;
 }
 
 function nextTurn() {
@@ -161,7 +145,6 @@ function resetRound() {
     players.forEach(p => { p.roundHand = []; p.status = 'active'; p.hasSecondChance = false; });
     currentPlayerIndex = 0;
     renderUI();
-    log("New Round!");
 }
 
 function renderUI() {
@@ -176,21 +159,21 @@ function renderUI() {
     const container = document.getElementById('players-list-display');
     container.innerHTML = '';
     players.forEach((p, idx) => {
-        const sorted = [...p.roundHand].sort((a,b) => (a.type === 'number' && b.type === 'number') ? a.val - b.val : (a.type === 'number' ? -1 : 1));
         const row = document.createElement('div');
-        row.className = `player-row ${idx === currentPlayerIndex ? 'active' : ''} ${p.totalScore >= 180 ? 'match-point' : ''}`;
+        row.className = `player-row ${idx === currentPlayerIndex ? 'active' : ''}`;
         row.innerHTML = `<div class="player-info"><b>${p.name}</b><br><small>${p.status}</small></div>
-            <div class="hand">${sorted.map(c => `<div class="card ${c.type}">${c.label}</div>`).join('')}</div>
+            <div class="hand">${p.roundHand.map(c => `<div class="card ${c.type}">${c.label}</div>`).join('')}</div>
             <div class="round-total-box"><small>ROUND</small><br><span class="round-score-val">${getRoundTotal(p)}</span></div>`;
         container.appendChild(row);
     });
 }
 
-// Modal Helpers
 function openTargetModal(card) {
     return new Promise(resolve => {
         const overlay = document.getElementById('modal-overlay');
         overlay.style.display = 'flex';
+        // Updated text so players know what they are assigning
+        document.getElementById('modal-title-text').innerText = `Assign ${card.label} to:`;
         const grid = document.getElementById('target-buttons-grid');
         grid.innerHTML = '';
         players.forEach(p => {
@@ -210,5 +193,5 @@ function toggleControls(en) {
 
 document.getElementById('hit-btn-main').onclick = handleHit;
 document.getElementById('stay-btn-main').onclick = () => {
-    let p = players[currentPlayerIndex]; p.status = 'stayed'; bankScore(p); nextTurn();
+    let p = players[currentPlayerIndex]; p.status = 'stayed'; p.totalScore += getRoundTotal(p); nextTurn();
 };
