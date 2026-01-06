@@ -30,14 +30,13 @@ function log(msg) {
     if(lb) lb.innerText = msg; 
 }
 
-// --- MODALS ---
 function showNoticeModal(title, message) {
     return new Promise((resolve) => {
         const overlay = document.getElementById('modal-overlay');
         overlay.style.display = 'flex';
         document.getElementById('modal-title-text').innerText = title;
         const grid = document.getElementById('target-buttons-grid');
-        grid.innerHTML = `<p style="grid-column: span 3; color:white; font-size:1.2rem; margin:15px 0;">${message}</p>`;
+        grid.innerHTML = `<p style="grid-column: span 3; color:white; font-size:1.2rem; margin:15px 0; line-height:1.4;">${message}</p>`;
         const btn = document.createElement('button');
         btn.innerText = "CONTINUE"; btn.className = "hit-btn"; btn.style.gridColumn = "span 3";
         btn.onclick = () => { overlay.style.display = 'none'; resolve(); };
@@ -62,7 +61,6 @@ function openTargetModal(card) {
     });
 }
 
-// --- SETUP ---
 const countInput = document.getElementById('player-count-input');
 const inputsContainer = document.getElementById('name-inputs-container');
 
@@ -91,16 +89,13 @@ document.getElementById('start-game-btn').onclick = () => {
     renderUI();
 };
 
-// --- GAMEPLAY ---
 async function handleHit() {
     toggleControls(false);
     let p = players[currentPlayerIndex];
     if (deck.length === 0) deck = createDeck();
     let card = deck.pop();
     log(`${p.name} drew ${card.label}`);
-    
     await processCard(p, card);
-    
     if (p.status !== 'active') setTimeout(nextTurn, 1000);
     else nextTurn();
     toggleControls(true);
@@ -133,14 +128,12 @@ async function applySimpleCard(player, card) {
     } 
     else if (card.type === 'number') {
         let isDup = card.val !== 0 && player.roundHand.some(c => c.type === 'number' && c.val === card.val);
-        
         if (isDup) {
             if (player.hasSecondChance) {
-                await showNoticeModal("🛡️ SHIELD USED!", `${player.name} drew a duplicate [ ${card.val} ]. The card was discarded!`);
+                await showNoticeModal("🛡️ SHIELD USED!", `${player.name} hit a duplicate [ ${card.val} ]. All shields discarded!`);
                 player.hasSecondChance = false;
-                const cIdx = player.roundHand.findIndex(c => c.label === '2nd CHANCE');
-                if (cIdx > -1) player.roundHand.splice(cIdx, 1);
-                // NOTE: We do NOT push the duplicate card into the hand.
+                // REMOVE ALL CHANCE CARDS
+                player.roundHand = player.roundHand.filter(c => c.label !== '2nd CHANCE');
             } else {
                 player.status = 'busted';
                 player.roundHand.push(card);
@@ -183,7 +176,6 @@ function getRoundTotal(p) {
 function nextTurn() {
     const actives = players.filter(p => p.status === 'active');
     if (actives.length === 0) { setTimeout(resetRound, 1500); return; }
-
     let nextIndex = (currentPlayerIndex + 1) % players.length;
     let attempts = 0;
     while (players[nextIndex].status !== 'active' && attempts < players.length) {
@@ -211,11 +203,9 @@ function renderUI() {
     document.getElementById('deck-count-display').innerText = deck.length;
     document.getElementById('turn-indicator').innerText = `${players[currentPlayerIndex].name}'s Turn`;
     document.getElementById('final-dash-banner').style.display = players.some(p => p.totalScore >= WIN_SCORE) ? 'block' : 'none';
-    
     const lb = document.getElementById('leaderboard-display');
     lb.innerHTML = [...players].sort((a,b) => b.totalScore - a.totalScore)
         .map(p => `<div class="leader-tag ${p.totalScore >= 180 ? 'match-point' : ''}">${p.name}: ${p.totalScore}</div>`).join('');
-
     const container = document.getElementById('players-list-display');
     container.innerHTML = '';
     players.forEach((p, idx) => {
@@ -225,7 +215,6 @@ function renderUI() {
             if (b.type === 'number') return 1;
             return 0;
         });
-
         const row = document.createElement('div');
         row.className = `player-row ${idx === currentPlayerIndex ? 'active' : ''}`;
         row.innerHTML = `<div class="player-info"><b>${p.name}</b> ${p.hasSecondChance ? '🛡️' : ''}<br><small>${p.status.toUpperCase()}</small></div>
@@ -246,4 +235,4 @@ document.getElementById('stay-btn-main').onclick = () => {
     renderUI(); setTimeout(nextTurn, 500);
 };
 
-refreshInputs(); // Initial call to show names on load
+refreshInputs();
